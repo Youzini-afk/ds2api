@@ -16,12 +16,14 @@ const DEFAULT_BASE_HEADERS = Object.freeze({
 
 const WEB_HEADER_OVERRIDES = Object.freeze({
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
-  Accept: '*/*',
+  Accept: 'application/json, text/plain, */*',
   'Content-Type': 'application/json',
-  'x-app-version': '20241129.1',
+  Origin: 'https://chat.deepseek.com',
+  Referer: 'https://chat.deepseek.com/',
+  'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
   'x-client-platform': 'web',
-  'x-client-version': '1.7.1',
-  'x-client-locale': 'en_US',
+  'x-client-version': '1.0.0',
+  'x-client-locale': 'zh_CN',
 });
 
 const DEFAULT_SKIP_PATTERNS = Object.freeze([
@@ -69,26 +71,15 @@ function loadSharedConstants() {
 }
 
 const shared = loadSharedConstants();
-function currentTimezoneOffsetSeconds() {
-  return String(-(new Date().getTimezoneOffset() * 60));
-}
-
-function webHeaders() {
-  return {
-    ...shared.baseHeaders,
-    ...WEB_HEADER_OVERRIDES,
-    'x-client-timezone-offset': currentTimezoneOffsetSeconds(),
-  };
-}
 
 module.exports = {
   SHARED_CONSTANTS_PATH,
   BASE_HEADERS: Object.freeze(shared.baseHeaders),
-  WEB_BASE_HEADERS: Object.freeze(webHeaders()),
+  WEB_BASE_HEADERS: Object.freeze({ ...shared.baseHeaders, ...WEB_HEADER_OVERRIDES }),
   baseHeadersForProfile(profile) {
     const p = String(profile || '').trim().toLowerCase();
     if (p === 'web') {
-      return webHeaders();
+      return { ...shared.baseHeaders, ...WEB_HEADER_OVERRIDES };
     }
     return { ...shared.baseHeaders };
   },

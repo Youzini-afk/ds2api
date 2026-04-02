@@ -3,9 +3,7 @@ package deepseek
 import (
 	_ "embed"
 	"encoding/json"
-	"strconv"
 	"strings"
-	"time"
 )
 
 const (
@@ -32,12 +30,14 @@ var defaultBaseHeaders = map[string]string{
 
 var defaultWebHeaderOverrides = map[string]string{
 	"User-Agent":        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
-	"Accept":            "*/*",
+	"Accept":            "application/json, text/plain, */*",
 	"Content-Type":      "application/json",
-	"x-app-version":     "20241129.1",
+	"Origin":            "https://chat.deepseek.com",
+	"Referer":           "https://chat.deepseek.com/",
+	"accept-language":   "zh-CN,zh;q=0.9,en;q=0.8",
 	"x-client-platform": "web",
-	"x-client-version":  "1.7.1",
-	"x-client-locale":   "en_US",
+	"x-client-version":  "1.0.0",
+	"x-client-locale":   "zh_CN",
 }
 
 var defaultSkipContainsPatterns = []string{
@@ -89,9 +89,7 @@ func init() {
 func BaseHeadersForProfile(profile string) map[string]string {
 	switch normalizeUpstreamProfile(profile) {
 	case "web":
-		out := cloneStringMap(WebBaseHeaders)
-		out["x-client-timezone-offset"] = currentTimezoneOffsetSeconds()
-		return out
+		return cloneStringMap(WebBaseHeaders)
 	default:
 		return cloneStringMap(BaseHeaders)
 	}
@@ -112,11 +110,6 @@ func deriveWebBaseHeaders(base map[string]string) map[string]string {
 		out[k] = v
 	}
 	return out
-}
-
-func currentTimezoneOffsetSeconds() string {
-	_, offset := time.Now().Zone()
-	return strconv.Itoa(offset)
 }
 
 func cloneStringMap(in map[string]string) map[string]string {

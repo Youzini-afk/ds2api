@@ -24,6 +24,7 @@ type ConfigStore interface {
 	IsEnvWritebackEnabled() bool
 	HasEnvConfigSource() bool
 	ConfigPath() string
+	CompatEffective() config.EffectiveCompat
 	SetVercelSync(hash string, ts int64) error
 	AdminPasswordHash() string
 	AdminJWTExpireHours() int

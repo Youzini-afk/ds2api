@@ -10,6 +10,23 @@ import (
 	"ds2api/internal/util"
 )
 
+func BuildResponsesMessageContent(reasoningText, outputText string) []any {
+	content := make([]any, 0, 2)
+	if strings.TrimSpace(reasoningText) != "" {
+		content = append(content, map[string]any{
+			"type": "reasoning",
+			"text": reasoningText,
+		})
+	}
+	if strings.TrimSpace(outputText) != "" {
+		content = append(content, map[string]any{
+			"type": "output_text",
+			"text": outputText,
+		})
+	}
+	return content
+}
+
 func BuildResponseObject(responseID, model, finalPrompt, finalThinking, finalText string, toolNames []string, exposeReasoning bool) map[string]any {
 	// Strict mode: only standalone, structured tool-call payloads are treated
 	// as executable tool calls.
@@ -22,30 +39,28 @@ func BuildResponseObject(responseID, model, finalPrompt, finalThinking, finalTex
 	output := make([]any, 0, 2)
 	if len(detected.Calls) > 0 {
 		exposedOutputText = ""
-		output = append(output, toResponsesFunctionCallItems(detected.Calls)...)
-	} else {
-		content := make([]any, 0, 2)
-		if exposedThinking != "" {
-			content = append([]any{map[string]any{
-				"type": "reasoning",
-				"text": exposedThinking,
-			}}, content...)
-		}
-		if strings.TrimSpace(finalText) != "" {
-			content = append(content, map[string]any{
-				"type": "output_text",
-				"text": finalText,
+		if content := BuildResponsesMessageContent(exposedThinking, ""); len(content) > 0 {
+			output = append(output, map[string]any{
+				"type":    "message",
+				"id":      "msg_" + strings.ReplaceAll(uuid.NewString(), "-", ""),
+				"role":    "assistant",
+				"content": content,
 			})
 		}
+		output = append(output, toResponsesFunctionCallItems(detected.Calls)...)
+	} else {
+		content := BuildResponsesMessageContent(exposedThinking, finalText)
 		if strings.TrimSpace(finalText) == "" && strings.TrimSpace(exposedThinking) != "" {
 			exposedOutputText = exposedThinking
 		}
-		output = append(output, map[string]any{
-			"type":    "message",
-			"id":      "msg_" + strings.ReplaceAll(uuid.NewString(), "-", ""),
-			"role":    "assistant",
-			"content": content,
-		})
+		if len(content) > 0 {
+			output = append(output, map[string]any{
+				"type":    "message",
+				"id":      "msg_" + strings.ReplaceAll(uuid.NewString(), "-", ""),
+				"role":    "assistant",
+				"content": content,
+			})
+		}
 	}
 	return BuildResponseObjectFromItems(
 		responseID,

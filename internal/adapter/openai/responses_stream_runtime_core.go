@@ -194,6 +194,7 @@ func (s *responsesStreamRuntime) onParsed(parsed sse.LineResult) streamengine.Pa
 			}
 			s.thinking.WriteString(p.Text)
 			if s.exposeReasoning {
+				s.ensureMessageOutputIndex()
 				s.sendEvent("response.reasoning.delta", openaifmt.BuildResponsesReasoningDeltaPayload(s.responseID, p.Text))
 			}
 			continue

@@ -74,32 +74,19 @@ func (s *responsesStreamRuntime) buildCompletedResponseObject(finalThinking, fin
 		indexed = append(indexed, indexedItem{
 			index: s.ensureMessageOutputIndex(),
 			item: map[string]any{
-				"id":     s.ensureMessageItemID(),
-				"type":   "message",
-				"role":   "assistant",
-				"status": "completed",
-				"content": []map[string]any{
-					{
-						"type": "output_text",
-						"text": text,
-					},
-				},
+				"id":      s.ensureMessageItemID(),
+				"type":    "message",
+				"role":    "assistant",
+				"status":  "completed",
+				"content": openaifmt.BuildResponsesMessageContent(exposedThinking, text),
 			},
 		})
-	} else if len(calls) == 0 {
-		content := make([]map[string]any, 0, 2)
-		if strings.TrimSpace(exposedThinking) != "" {
-			content = append(content, map[string]any{
-				"type": "reasoning",
-				"text": exposedThinking,
-			})
+	} else {
+		messageText := ""
+		if len(calls) == 0 {
+			messageText = finalText
 		}
-		if strings.TrimSpace(finalText) != "" {
-			content = append(content, map[string]any{
-				"type": "output_text",
-				"text": finalText,
-			})
-		}
+		content := openaifmt.BuildResponsesMessageContent(exposedThinking, messageText)
 		if len(content) > 0 {
 			indexed = append(indexed, indexedItem{
 				index: s.ensureMessageOutputIndex(),

@@ -1,8 +1,45 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+
+function normalizeToken(value) {
+    return String(value || '').trim().toLowerCase()
+}
+
+function resolveCompatPreview(compat) {
+    const preset = normalizeToken(compat?.preset) === 'shallowseek_compat' ? 'shallowseek_compat' : 'default'
+    const effective = {
+        reasoner_prompt_mode: 'default',
+        reasoning_exposure: 'always',
+        upstream_profile: 'android',
+    }
+
+    if (preset === 'shallowseek_compat') {
+        effective.reasoner_prompt_mode = 'end_of_thinking'
+        effective.reasoning_exposure = 'request_opt_in'
+        effective.upstream_profile = 'web'
+    }
+
+    const reasonerOverride = normalizeToken(compat?.reasoner_prompt_mode_override)
+    if (reasonerOverride === 'default' || reasonerOverride === 'end_of_thinking') {
+        effective.reasoner_prompt_mode = reasonerOverride
+    }
+
+    const reasoningOverride = normalizeToken(compat?.reasoning_exposure_override)
+    if (reasoningOverride === 'always' || reasoningOverride === 'request_opt_in') {
+        effective.reasoning_exposure = reasoningOverride
+    }
+
+    const upstreamOverride = normalizeToken(compat?.upstream_profile_override)
+    if (upstreamOverride === 'android' || upstreamOverride === 'web') {
+        effective.upstream_profile = upstreamOverride
+    }
+
+    return effective
+}
 
 export default function CompatibilitySection({ t, form, setForm }) {
     const [advancedOpen, setAdvancedOpen] = useState(false)
     const compat = form.compat || {}
+    const effective = useMemo(() => resolveCompatPreview(compat), [compat])
 
     const updateCompat = (patch) => {
         setForm(prev => ({
@@ -50,13 +87,13 @@ export default function CompatibilitySection({ t, form, setForm }) {
 
             <div className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted-foreground space-y-1">
                 <div>
-                    {t('settings.compatEffectiveReasonerPromptMode')}: <span className="font-mono text-foreground">{compat.effective_reasoner_prompt_mode || 'default'}</span>
+                    {t('settings.compatEffectiveReasonerPromptMode')}: <span className="font-mono text-foreground">{effective.reasoner_prompt_mode}</span>
                 </div>
                 <div>
-                    {t('settings.compatEffectiveReasoningExposure')}: <span className="font-mono text-foreground">{compat.effective_reasoning_exposure || 'always'}</span>
+                    {t('settings.compatEffectiveReasoningExposure')}: <span className="font-mono text-foreground">{effective.reasoning_exposure}</span>
                 </div>
                 <div>
-                    {t('settings.compatEffectiveUpstreamProfile')}: <span className="font-mono text-foreground">{compat.effective_upstream_profile || 'android'}</span>
+                    {t('settings.compatEffectiveUpstreamProfile')}: <span className="font-mono text-foreground">{effective.upstream_profile}</span>
                 </div>
             </div>
 

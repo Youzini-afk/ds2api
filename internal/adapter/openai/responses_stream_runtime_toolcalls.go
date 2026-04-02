@@ -93,6 +93,10 @@ func (s *responsesStreamRuntime) closeMessageItem() {
 	itemID := s.ensureMessageItemID()
 	outputIndex := s.ensureMessageOutputIndex()
 	text := s.visibleText.String()
+	reasoningText := ""
+	if s.exposeReasoning {
+		reasoningText = s.thinking.String()
+	}
 	if s.messagePartAdded {
 		s.sendEvent(
 			"response.output_text.done",
@@ -117,16 +121,11 @@ func (s *responsesStreamRuntime) closeMessageItem() {
 		s.messagePartAdded = false
 	}
 	item := map[string]any{
-		"id":     itemID,
-		"type":   "message",
-		"role":   "assistant",
-		"status": "completed",
-		"content": []map[string]any{
-			{
-				"type": "output_text",
-				"text": text,
-			},
-		},
+		"id":      itemID,
+		"type":    "message",
+		"role":    "assistant",
+		"status":  "completed",
+		"content": openaifmt.BuildResponsesMessageContent(reasoningText, text),
 	}
 	s.sendEvent(
 		"response.output_item.done",

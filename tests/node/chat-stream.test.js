@@ -2,8 +2,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 
 const handler = require('../../api/chat-stream.js');
+const { SHARED_CONSTANTS_PATH } = require('../../internal/js/shared/deepseek-constants.js');
 const {
   createToolSieveState,
   processToolSieveChunk,
@@ -22,6 +24,10 @@ const {
 test('chat-stream exposes parser test hooks', () => {
   assert.equal(typeof parseChunkForContent, 'function');
   assert.equal(typeof resolveToolcallPolicy, 'function');
+});
+
+test('deepseek shared constants path resolves to a real file', () => {
+  assert.equal(fs.existsSync(SHARED_CONSTANTS_PATH), true);
 });
 
 test('resolveToolcallPolicy defaults to feature-match + early emit when prepare flags missing', () => {

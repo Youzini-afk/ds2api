@@ -136,6 +136,65 @@ func TestBuildResponseObjectReasoningOnlyFallsBackToOutputText(t *testing.T) {
 	}
 }
 
+func TestBuildResponseObjectKeepsReasoningWhenToolCallsArePresent(t *testing.T) {
+	obj := BuildResponseObject(
+		"resp_test",
+		"gpt-4o",
+		"prompt",
+		"internal thinking content",
+		`{"tool_calls":[{"name":"search","input":{"q":"golang"}}]}`,
+		[]string{"search"},
+		true,
+	)
+
+	outputText, _ := obj["output_text"].(string)
+	if outputText != "" {
+		t.Fatalf("expected output_text to stay hidden for tool calls, got %q", outputText)
+	}
+
+	output, _ := obj["output"].([]any)
+	if len(output) != 2 {
+		t.Fatalf("expected reasoning message + function_call, got %#v", obj["output"])
+	}
+	first, _ := output[0].(map[string]any)
+	if first["type"] != "message" {
+		t.Fatalf("expected first output item message, got %#v", first["type"])
+	}
+	content, _ := first["content"].([]any)
+	if len(content) != 1 {
+		t.Fatalf("expected one reasoning content block, got %#v", first["content"])
+	}
+	block0, _ := content[0].(map[string]any)
+	if block0["type"] != "reasoning" {
+		t.Fatalf("expected reasoning content block, got %#v", block0["type"])
+	}
+	second, _ := output[1].(map[string]any)
+	if second["type"] != "function_call" {
+		t.Fatalf("expected second output item function_call, got %#v", second["type"])
+	}
+}
+
+func TestBuildResponseObjectHidesReasoningWhenToolCallsArePresentButExposureDisabled(t *testing.T) {
+	obj := BuildResponseObject(
+		"resp_test",
+		"gpt-4o",
+		"prompt",
+		"internal thinking content",
+		`{"tool_calls":[{"name":"search","input":{"q":"golang"}}]}`,
+		[]string{"search"},
+		false,
+	)
+
+	output, _ := obj["output"].([]any)
+	if len(output) != 1 {
+		t.Fatalf("expected function_call output only when reasoning is hidden, got %#v", obj["output"])
+	}
+	first, _ := output[0].(map[string]any)
+	if first["type"] != "function_call" {
+		t.Fatalf("expected function_call output type, got %#v", first["type"])
+	}
+}
+
 func TestBuildResponseObjectIgnoresToolCallFromThinkingChannel(t *testing.T) {
 	obj := BuildResponseObject(
 		"resp_test",

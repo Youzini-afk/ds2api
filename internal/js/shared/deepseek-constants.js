@@ -41,10 +41,11 @@ const DEFAULT_SKIP_EXACT_PATHS = Object.freeze([
   'response/search_status',
 ]);
 
+const SHARED_CONSTANTS_PATH = path.resolve(__dirname, '../../deepseek/constants_shared.json');
+
 function loadSharedConstants() {
-  const sharedPath = path.resolve(__dirname, '../../internal/deepseek/constants_shared.json');
   try {
-    const raw = fs.readFileSync(sharedPath, 'utf8');
+    const raw = fs.readFileSync(SHARED_CONSTANTS_PATH, 'utf8');
     const parsed = JSON.parse(raw);
     const baseHeaders = parsed && typeof parsed.base_headers === 'object' && !Array.isArray(parsed.base_headers)
       ? { ...DEFAULT_BASE_HEADERS, ...parsed.base_headers }
@@ -72,6 +73,7 @@ function loadSharedConstants() {
 const shared = loadSharedConstants();
 
 module.exports = {
+  SHARED_CONSTANTS_PATH,
   BASE_HEADERS: Object.freeze(shared.baseHeaders),
   WEB_BASE_HEADERS: Object.freeze({ ...shared.baseHeaders, ...WEB_HEADER_OVERRIDES }),
   baseHeadersForProfile(profile) {

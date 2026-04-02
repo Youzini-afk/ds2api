@@ -181,6 +181,88 @@ func TestHandleResponsesStreamDoesNotEmitReasoningTextCompatEvents(t *testing.T)
 	}
 }
 
+func TestHandleResponsesStreamCompletedRetainsReasoningWithVisibleText(t *testing.T) {
+	h := &Handler{}
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+	rec := httptest.NewRecorder()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body: io.NopCloser(strings.NewReader(
+			`data: {"p":"response/thinking_content","v":"thought"}` + "\n" +
+				`data: {"p":"response/content","v":"answer"}` + "\n" +
+				`data: [DONE]` + "\n",
+		)),
+	}
+
+	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_reasoning_text", "deepseek-reasoner", "prompt", true, true, false, nil, util.DefaultToolChoicePolicy(), "")
+
+	completed, ok := extractSSEEventPayload(rec.Body.String(), "response.completed")
+	if !ok {
+		t.Fatalf("expected response.completed payload, body=%s", rec.Body.String())
+	}
+	responseObj, _ := completed["response"].(map[string]any)
+	output, _ := responseObj["output"].([]any)
+	if len(output) != 1 {
+		t.Fatalf("expected single message output, got %#v", responseObj["output"])
+	}
+	message, _ := output[0].(map[string]any)
+	content, _ := message["content"].([]any)
+	if len(content) != 2 {
+		t.Fatalf("expected reasoning + output_text content, got %#v", message["content"])
+	}
+	first, _ := content[0].(map[string]any)
+	second, _ := content[1].(map[string]any)
+	if asString(first["type"]) != "reasoning" || asString(first["text"]) != "thought" {
+		t.Fatalf("expected first content block reasoning thought, got %#v", first)
+	}
+	if asString(second["type"]) != "output_text" || asString(second["text"]) != "answer" {
+		t.Fatalf("expected second content block output_text answer, got %#v", second)
+	}
+}
+
+func TestHandleResponsesStreamCompletedRetainsReasoningWithToolCalls(t *testing.T) {
+	h := &Handler{}
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+	rec := httptest.NewRecorder()
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body: io.NopCloser(strings.NewReader(
+			`data: {"p":"response/thinking_content","v":"thought"}` + "\n" +
+				`data: {"p":"response/content","v":"{\"tool_calls\":[{\"name\":\"read_file\",\"input\":{\"path\":\"README.MD\"}}]}"}` + "\n" +
+				`data: [DONE]` + "\n",
+		)),
+	}
+
+	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_reasoning_tool", "deepseek-reasoner", "prompt", true, true, false, []string{"read_file"}, util.DefaultToolChoicePolicy(), "")
+
+	completed, ok := extractSSEEventPayload(rec.Body.String(), "response.completed")
+	if !ok {
+		t.Fatalf("expected response.completed payload, body=%s", rec.Body.String())
+	}
+	responseObj, _ := completed["response"].(map[string]any)
+	outputText, _ := responseObj["output_text"].(string)
+	if outputText != "" {
+		t.Fatalf("expected tool-call completion to keep output_text hidden, got %q", outputText)
+	}
+	output, _ := responseObj["output"].([]any)
+	if len(output) != 2 {
+		t.Fatalf("expected reasoning message + function_call, got %#v", responseObj["output"])
+	}
+	message, _ := output[0].(map[string]any)
+	content, _ := message["content"].([]any)
+	if len(content) != 1 {
+		t.Fatalf("expected one reasoning content block, got %#v", message["content"])
+	}
+	first, _ := content[0].(map[string]any)
+	if asString(first["type"]) != "reasoning" || asString(first["text"]) != "thought" {
+		t.Fatalf("expected reasoning thought block, got %#v", first)
+	}
+	functionCall, _ := output[1].(map[string]any)
+	if asString(functionCall["type"]) != "function_call" {
+		t.Fatalf("expected second output item function_call, got %#v", functionCall)
+	}
+}
+
 func TestHandleResponsesStreamMultiToolCallKeepsNameAndCallIDAligned(t *testing.T) {
 	h := &Handler{}
 	req := httptest.NewRequest(http.MethodPost, "/v1/responses", nil)

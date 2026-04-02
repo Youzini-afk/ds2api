@@ -225,7 +225,7 @@ func TestNormalizeOpenAIChatRequestExposeReasoningRequestOptIn(t *testing.T) {
 	}
 }
 
-func TestNormalizeOpenAIChatRequestShallowseekPresetUsesShallowseekPromptStyle(t *testing.T) {
+func TestNormalizeOpenAIChatRequestShallowseekPresetKeepsDefaultPromptStyle(t *testing.T) {
 	t.Setenv("DS2API_CONFIG_JSON", `{"compat":{"preset":"shallowseek_compat"}}`)
 	store := config.LoadStore()
 	req := map[string]any{
@@ -241,10 +241,10 @@ func TestNormalizeOpenAIChatRequestShallowseekPresetUsesShallowseekPromptStyle(t
 	if err != nil {
 		t.Fatalf("normalize failed: %v", err)
 	}
-	if !strings.HasPrefix(n.FinalPrompt, "<system_instructions>你是助手</system_instructions>\n你好") {
-		t.Fatalf("expected shallowseek-style prompt prefix, got %q", n.FinalPrompt)
+	if !strings.HasPrefix(n.FinalPrompt, "<system_instructions>\n你是助手\n</system_instructions>\n\n<｜User｜>你好") {
+		t.Fatalf("expected default prompt prefix, got %q", n.FinalPrompt)
 	}
 	if !strings.Contains(n.FinalPrompt, "<｜Assistant｜><｜end▁of▁thinking｜>你好呀<｜end▁of▁sentence｜><｜User｜>继续") {
-		t.Fatalf("expected shallowseek-style assistant/user boundary, got %q", n.FinalPrompt)
+		t.Fatalf("expected only reasoner assistant boundary override, got %q", n.FinalPrompt)
 	}
 }

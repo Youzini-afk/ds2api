@@ -28,7 +28,7 @@ func TestMessagesPrepareWithCompatKeepsDefaultForNonReasoner(t *testing.T) {
 	}
 }
 
-func TestMessagesPrepareWithCompatUsesShallowseekStyleWhenEnabled(t *testing.T) {
+func TestMessagesPrepareWithCompatKeepsDefaultPromptStyleWhenBoundaryEnabled(t *testing.T) {
 	messages := []map[string]any{
 		{"role": "system", "content": "你是助手"},
 		{"role": "user", "content": "你好"},
@@ -36,10 +36,10 @@ func TestMessagesPrepareWithCompatUsesShallowseekStyleWhenEnabled(t *testing.T) 
 		{"role": "user", "content": "继续"},
 	}
 	got := MessagesPrepareWithCompat(messages, "deepseek-reasoner", config.CompatReasonerPromptEndThink)
-	if !strings.HasPrefix(got, "<system_instructions>你是助手</system_instructions>\n你好") {
-		t.Fatalf("expected shallowseek-style merged system/user prefix, got %q", got)
+	if !strings.HasPrefix(got, "<system_instructions>\n你是助手\n</system_instructions>\n\n<｜User｜>你好") {
+		t.Fatalf("expected default system/user formatting, got %q", got)
 	}
-	if !strings.Contains(got, "<｜User｜>继续") {
-		t.Fatalf("expected subsequent user turns to keep user boundary, got %q", got)
+	if !strings.Contains(got, "<｜Assistant｜><｜end▁of▁thinking｜>你好呀<｜end▁of▁sentence｜><｜User｜>继续") {
+		t.Fatalf("expected only reasoner assistant boundary to change, got %q", got)
 	}
 }

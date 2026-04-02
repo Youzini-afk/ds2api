@@ -36,6 +36,23 @@ function resolveCompatPreview(compat) {
     return effective
 }
 
+function displayCompatValue(t, field, value) {
+    const normalized = normalizeToken(value)
+    if (field === 'reasoner_prompt_mode') {
+        if (normalized === 'end_of_thinking') return t('settings.compatReasonerModeEndOfThinking')
+        return t('settings.compatReasonerModeDefault')
+    }
+    if (field === 'reasoning_exposure') {
+        if (normalized === 'request_opt_in') return t('settings.compatReasoningExposureRequestOptIn')
+        return t('settings.compatReasoningExposureAlways')
+    }
+    if (field === 'upstream_profile') {
+        if (normalized === 'web') return t('settings.compatUpstreamProfileWeb')
+        return t('settings.compatUpstreamProfileAndroid')
+    }
+    return value
+}
+
 export default function CompatibilitySection({ t, form, setForm }) {
     const [advancedOpen, setAdvancedOpen] = useState(false)
     const compat = form.compat || {}
@@ -87,13 +104,13 @@ export default function CompatibilitySection({ t, form, setForm }) {
 
             <div className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted-foreground space-y-1">
                 <div>
-                    {t('settings.compatEffectiveReasonerPromptMode')}: <span className="font-mono text-foreground">{effective.reasoner_prompt_mode}</span>
+                    {t('settings.compatEffectiveReasonerPromptMode')}: <span className="text-foreground">{displayCompatValue(t, 'reasoner_prompt_mode', effective.reasoner_prompt_mode)}</span>
                 </div>
                 <div>
-                    {t('settings.compatEffectiveReasoningExposure')}: <span className="font-mono text-foreground">{effective.reasoning_exposure}</span>
+                    {t('settings.compatEffectiveReasoningExposure')}: <span className="text-foreground">{displayCompatValue(t, 'reasoning_exposure', effective.reasoning_exposure)}</span>
                 </div>
                 <div>
-                    {t('settings.compatEffectiveUpstreamProfile')}: <span className="font-mono text-foreground">{effective.upstream_profile}</span>
+                    {t('settings.compatEffectiveUpstreamProfile')}: <span className="text-foreground">{displayCompatValue(t, 'upstream_profile', effective.upstream_profile)}</span>
                 </div>
             </div>
 
@@ -116,8 +133,8 @@ export default function CompatibilitySection({ t, form, setForm }) {
                                 className="w-full bg-background border border-border rounded-lg px-3 py-2"
                             >
                                 <option value="">{t('settings.compatInheritPreset')}</option>
-                                <option value="default">default</option>
-                                <option value="end_of_thinking">end_of_thinking</option>
+                                <option value="default">{t('settings.compatReasonerModeDefault')}</option>
+                                <option value="end_of_thinking">{t('settings.compatReasonerModeEndOfThinking')}</option>
                             </select>
                         </label>
 
@@ -129,8 +146,8 @@ export default function CompatibilitySection({ t, form, setForm }) {
                                 className="w-full bg-background border border-border rounded-lg px-3 py-2"
                             >
                                 <option value="">{t('settings.compatInheritPreset')}</option>
-                                <option value="always">always</option>
-                                <option value="request_opt_in">request_opt_in</option>
+                                <option value="always">{t('settings.compatReasoningExposureAlways')}</option>
+                                <option value="request_opt_in">{t('settings.compatReasoningExposureRequestOptIn')}</option>
                             </select>
                         </label>
 
@@ -142,8 +159,8 @@ export default function CompatibilitySection({ t, form, setForm }) {
                                 className="w-full bg-background border border-border rounded-lg px-3 py-2"
                             >
                                 <option value="">{t('settings.compatInheritPreset')}</option>
-                                <option value="android">android</option>
-                                <option value="web">web</option>
+                                <option value="android">{t('settings.compatUpstreamProfileAndroid')}</option>
+                                <option value="web">{t('settings.compatUpstreamProfileWeb')}</option>
                             </select>
                         </label>
                     </div>

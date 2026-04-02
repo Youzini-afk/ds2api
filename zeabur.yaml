@@ -17,6 +17,7 @@ spec:
     - Health check: `/healthz`
     - Config is persisted at `/data/config.json` (mounted volume)
     - `BUILD_VERSION` is optional; when omitted, Docker build falls back to the repo `VERSION` file automatically
+    - Direct GitHub auto-deploy on Zeabur primarily uses the repo-root `Dockerfile`; `zeabur.yaml` provides template metadata/defaults
 
     ## First-time setup
     1. Open your service URL, then visit `/admin`
@@ -29,7 +30,7 @@ spec:
       spec:
         source:
           source: GITHUB
-          repo: 1139136822
+          repo: 1199339400
           branch: main
           rootDirectory: /
         ports:

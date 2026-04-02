@@ -178,11 +178,13 @@ healthcheck:
 ### 2.7 Zeabur 一键部署（Dockerfile）
 
 仓库提供 `zeabur.yaml` 模板，可在 Zeabur 上一键部署：
+如果你部署的是自己的 Fork，建议直接在 Zeabur 导入当前 GitHub 仓库；下方按钮更适合已发布模板场景。
 
 [![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/L4CFHP)
 
 部署要点：
 
+- **Fork 自动部署建议**：如果你部署的是自己的 Fork，优先直接在 Zeabur 导入当前 GitHub 仓库；此时平台主要读取仓库根目录 `Dockerfile`，`zeabur.yaml` 主要承担模板元数据、默认环境变量、卷与健康检查说明。
 - **端口**：服务默认监听 `5001`，模板会固定设置 `PORT=5001`。
 - **配置持久化**：模板挂载卷 `/data`，并设置 `DS2API_CONFIG_PATH=/data/config.json`；在管理台导入配置后，会写入并持久化到该路径。
 - **构建版本号**：Zeabur / 普通 `docker build` 默认不需要传 `BUILD_VERSION`；镜像会优先使用该构建参数，未提供时自动回退到仓库根目录的 `VERSION` 文件。

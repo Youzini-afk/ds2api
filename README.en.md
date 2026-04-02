@@ -9,7 +9,7 @@
 ![Forks](https://img.shields.io/github/forks/CJackHwang/ds2api.svg)
 [![Release](https://img.shields.io/github/v/release/CJackHwang/ds2api?display_name=tag)](https://github.com/CJackHwang/ds2api/releases)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](docs/DEPLOY.en.md)
-[![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/L4CFHP)
+[![Deploy on Zeabur](https://zeabur.com/button.svg)](docs/DEPLOY.en.md)
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/CJackHwang/ds2api)
 
 Language: [中文](README.MD) | [English](README.en.md)
@@ -186,11 +186,13 @@ Rebuild after updates: `docker-compose up -d --build`
 
 #### Zeabur One-Click (Dockerfile)
 
-1. Click the “Deploy on Zeabur” button above to deploy.
+1. If you are deploying your own fork, prefer importing this GitHub repo directly in Zeabur. The repo-root `Dockerfile` is ready for automated builds; the button is more suitable for published-template flows.
 2. After deployment, open `/admin` and login with `DS2API_ADMIN_KEY` shown in Zeabur env/template instructions.
 3. Import / edit config in Admin UI (it will be written and persisted to `/data/config.json`).
 
-Note: when Zeabur builds directly from the repo `Dockerfile`, you do not need to pass `BUILD_VERSION`. The image prefers that build arg when provided, and automatically falls back to the repo-root `VERSION` file when it is absent.
+Notes:
+- For direct GitHub auto-deploy on Zeabur, the repo-root `Dockerfile` is the primary deployment contract; `zeabur.yaml` mainly provides template metadata, default envs, volume mount, and health-check defaults.
+- When Zeabur builds directly from the repo `Dockerfile`, you do not need to pass `BUILD_VERSION`. The image prefers that build arg when provided, and automatically falls back to the repo-root `VERSION` file when it is absent.
 
 ### Option 3: Vercel
 

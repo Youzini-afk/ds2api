@@ -25,11 +25,15 @@ FROM busybox:1.36.1-musl AS busybox-tools
 
 FROM debian:bookworm-slim AS runtime-base
 WORKDIR /app
+ENV PORT=5001
+ENV DS2API_AUTO_BUILD_WEBUI=0
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
+    && mkdir -p /data \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=busybox-tools /bin/busybox /usr/local/bin/busybox
 EXPOSE 5001
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD /bin/sh -ec '/usr/local/bin/busybox wget -q -T 3 -O - "http://127.0.0.1:${PORT:-5001}/healthz" >/dev/null || exit 1'
 CMD ["/usr/local/bin/ds2api"]
 
 FROM runtime-base AS runtime-from-source

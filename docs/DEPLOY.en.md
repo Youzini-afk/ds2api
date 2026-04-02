@@ -178,11 +178,13 @@ If container logs look normal but the admin panel is unreachable, check these fi
 ### 2.7 Zeabur One-Click (Dockerfile)
 
 This repo includes a `zeabur.yaml` template for one-click deployment on Zeabur:
+If you are deploying your own fork, prefer importing the GitHub repo directly in Zeabur; the button below is more suitable for published-template flows.
 
 [![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/L4CFHP)
 
 Notes:
 
+- **Fork auto-deploy recommendation**: if you are deploying your own fork, prefer importing the GitHub repo directly in Zeabur. In that flow, Zeabur primarily uses the repo-root `Dockerfile`, while `zeabur.yaml` mainly provides template metadata, default envs, volume, and health-check guidance.
 - **Port**: DS2API listens on `5001` by default; the template sets `PORT=5001`.
 - **Persistent config**: the template mounts `/data` and sets `DS2API_CONFIG_PATH=/data/config.json`. After importing config in Admin UI, it will be written and persisted to this path.
 - **Build version**: Zeabur / regular `docker build` does not require `BUILD_VERSION` by default. The image prefers that build arg when provided, and automatically falls back to the repo-root `VERSION` file when it is absent.

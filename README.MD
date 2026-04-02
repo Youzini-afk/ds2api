@@ -9,7 +9,7 @@
 ![Forks](https://img.shields.io/github/forks/CJackHwang/ds2api.svg)
 [![Release](https://img.shields.io/github/v/release/CJackHwang/ds2api?display_name=tag)](https://github.com/CJackHwang/ds2api/releases)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](docs/DEPLOY.md)
-[![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/L4CFHP)
+[![Deploy on Zeabur](https://zeabur.com/button.svg)](docs/DEPLOY.md)
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/CJackHwang/ds2api)
 
 语言 / Language: [中文](README.MD) | [English](README.en.md)
@@ -186,11 +186,13 @@ docker-compose logs -f
 
 #### Zeabur 一键部署（Dockerfile）
 
-1. 点击上方 “Deploy on Zeabur” 按钮，一键部署。
+1. 如果你部署的是自己的 Fork，优先直接在 Zeabur 导入当前 GitHub 仓库；仓库根目录 `Dockerfile` 已可直接用于自动构建。上方按钮更适合已发布模板场景。
 2. 部署完成后访问 `/admin`，使用 Zeabur 环境变量/模板指引中的 `DS2API_ADMIN_KEY` 登录。
 3. 在管理台导入/编辑配置（会写入并持久化到 `/data/config.json`）。
 
-说明：Zeabur 使用仓库内 `Dockerfile` 直接构建时，不需要额外传入 `BUILD_VERSION`；镜像会优先读取该构建参数，未提供时自动回退到仓库根目录的 `VERSION` 文件。
+说明：
+- Zeabur 直接从 GitHub 仓库自动部署时，核心依赖的是仓库根目录 `Dockerfile`；`zeabur.yaml` 主要提供模板元数据、默认环境变量、卷与健康检查配置。
+- 使用仓库内 `Dockerfile` 直接构建时，不需要额外传入 `BUILD_VERSION`；镜像会优先读取该构建参数，未提供时自动回退到仓库根目录的 `VERSION` 文件。
 
 ### 方式三：Vercel 部署
 

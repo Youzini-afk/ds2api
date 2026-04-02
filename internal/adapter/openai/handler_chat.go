@@ -88,13 +88,13 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if stdReq.Stream {
-		h.handleStream(w, r, resp, sessionID, stdReq.ResponseModel, stdReq.FinalPrompt, stdReq.Thinking, stdReq.Search, stdReq.ToolNames)
+		h.handleStream(w, r, resp, sessionID, stdReq.ResponseModel, stdReq.FinalPrompt, stdReq.Thinking, stdReq.ExposeReasoning, stdReq.Search, stdReq.ToolNames)
 		return
 	}
-	h.handleNonStream(w, r.Context(), resp, sessionID, stdReq.ResponseModel, stdReq.FinalPrompt, stdReq.Thinking, stdReq.ToolNames)
+	h.handleNonStream(w, r.Context(), resp, sessionID, stdReq.ResponseModel, stdReq.FinalPrompt, stdReq.Thinking, stdReq.ExposeReasoning, stdReq.ToolNames)
 }
 
-func (h *Handler) handleNonStream(w http.ResponseWriter, ctx context.Context, resp *http.Response, completionID, model, finalPrompt string, thinkingEnabled bool, toolNames []string) {
+func (h *Handler) handleNonStream(w http.ResponseWriter, ctx context.Context, resp *http.Response, completionID, model, finalPrompt string, thinkingEnabled, exposeReasoning bool, toolNames []string) {
 	if resp.StatusCode != http.StatusOK {
 		defer resp.Body.Close()
 		body, _ := io.ReadAll(resp.Body)
@@ -106,11 +106,11 @@ func (h *Handler) handleNonStream(w http.ResponseWriter, ctx context.Context, re
 
 	finalThinking := result.Thinking
 	finalText := sanitizeLeakedOutput(result.Text)
-	respBody := openaifmt.BuildChatCompletion(completionID, model, finalPrompt, finalThinking, finalText, toolNames)
+	respBody := openaifmt.BuildChatCompletion(completionID, model, finalPrompt, finalThinking, finalText, toolNames, exposeReasoning)
 	writeJSON(w, http.StatusOK, respBody)
 }
 
-func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request, resp *http.Response, completionID, model, finalPrompt string, thinkingEnabled, searchEnabled bool, toolNames []string) {
+func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request, resp *http.Response, completionID, model, finalPrompt string, thinkingEnabled, exposeReasoning, searchEnabled bool, toolNames []string) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -144,6 +144,7 @@ func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request, resp *htt
 		model,
 		finalPrompt,
 		thinkingEnabled,
+		exposeReasoning,
 		searchEnabled,
 		toolNames,
 		bufferToolContent,

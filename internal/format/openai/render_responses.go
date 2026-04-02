@@ -10,21 +10,25 @@ import (
 	"ds2api/internal/util"
 )
 
-func BuildResponseObject(responseID, model, finalPrompt, finalThinking, finalText string, toolNames []string) map[string]any {
+func BuildResponseObject(responseID, model, finalPrompt, finalThinking, finalText string, toolNames []string, exposeReasoning bool) map[string]any {
 	// Strict mode: only standalone, structured tool-call payloads are treated
 	// as executable tool calls.
 	detected := util.ParseStandaloneToolCallsDetailed(finalText, toolNames)
 	exposedOutputText := finalText
+	exposedThinking := ""
+	if exposeReasoning {
+		exposedThinking = finalThinking
+	}
 	output := make([]any, 0, 2)
 	if len(detected.Calls) > 0 {
 		exposedOutputText = ""
 		output = append(output, toResponsesFunctionCallItems(detected.Calls)...)
 	} else {
 		content := make([]any, 0, 2)
-		if finalThinking != "" {
+		if exposedThinking != "" {
 			content = append([]any{map[string]any{
 				"type": "reasoning",
-				"text": finalThinking,
+				"text": exposedThinking,
 			}}, content...)
 		}
 		if strings.TrimSpace(finalText) != "" {
@@ -33,8 +37,8 @@ func BuildResponseObject(responseID, model, finalPrompt, finalThinking, finalTex
 				"text": finalText,
 			})
 		}
-		if strings.TrimSpace(finalText) == "" && strings.TrimSpace(finalThinking) != "" {
-			exposedOutputText = finalThinking
+		if strings.TrimSpace(finalText) == "" && strings.TrimSpace(exposedThinking) != "" {
+			exposedOutputText = exposedThinking
 		}
 		output = append(output, map[string]any{
 			"type":    "message",

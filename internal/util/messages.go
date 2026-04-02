@@ -17,6 +17,10 @@ func MessagesPrepare(messages []map[string]any) string {
 	return prompt.MessagesPrepare(messages)
 }
 
+func MessagesPrepareWithOptions(messages []map[string]any, opts prompt.PrepareOptions) string {
+	return prompt.MessagesPrepareWithOptions(messages, opts)
+}
+
 func normalizeContent(v any) string {
 	return prompt.NormalizeContent(v)
 }

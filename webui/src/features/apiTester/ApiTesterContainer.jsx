@@ -30,10 +30,12 @@ export default function ApiTesterContainer({ config, onMessage, authFetch }) {
         setIsStreaming,
         streamingMode,
         setStreamingMode,
+        includeReasoning,
+        setIncludeReasoning,
         configExpanded,
         setConfigExpanded,
         abortControllerRef,
-    } = useApiTesterState({ t })
+    } = useApiTesterState({ t, config })
 
     const accounts = config.accounts || []
     const resolveAccountIdentifier = (acc) => {
@@ -62,6 +64,7 @@ export default function ApiTesterContainer({ config, onMessage, authFetch }) {
         effectiveKey,
         selectedAccount,
         streamingMode,
+        includeReasoning,
         abortControllerRef,
         setLoading,
         setIsStreaming,
@@ -81,6 +84,8 @@ export default function ApiTesterContainer({ config, onMessage, authFetch }) {
                 setModel={setModel}
                 streamingMode={streamingMode}
                 setStreamingMode={setStreamingMode}
+                includeReasoning={includeReasoning}
+                setIncludeReasoning={setIncludeReasoning}
                 selectedAccount={selectedAccount}
                 setSelectedAccount={setSelectedAccount}
                 accounts={accounts}

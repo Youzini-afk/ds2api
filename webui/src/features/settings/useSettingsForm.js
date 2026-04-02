@@ -15,6 +15,16 @@ const DEFAULT_FORM = {
     runtime: { account_max_inflight: 2, account_max_queue: 10, global_max_inflight: 10, token_refresh_interval_hours: 6 },
     responses: { store_ttl_seconds: 900 },
     embeddings: { provider: '' },
+    compat: {
+        wide_input_strict_output: true,
+        preset: 'default',
+        reasoner_prompt_mode_override: '',
+        reasoning_exposure_override: '',
+        upstream_profile_override: '',
+        effective_reasoner_prompt_mode: 'default',
+        effective_reasoning_exposure: 'always',
+        effective_upstream_profile: 'android',
+    },
     auto_delete: { sessions: false },
     claude_mapping_text: '{\n  "fast": "deepseek-chat",\n  "slow": "deepseek-reasoner"\n}',
     model_aliases_text: '{}',
@@ -38,6 +48,7 @@ function parseJSONMap(raw, fieldName, t) {
 }
 
 function fromServerForm(data) {
+    const compatRaw = data.compat || {}
     return {
         admin: { jwt_expire_hours: Number(data.admin?.jwt_expire_hours || 24) },
         runtime: {
@@ -51,6 +62,16 @@ function fromServerForm(data) {
         },
         embeddings: {
             provider: data.embeddings?.provider || '',
+        },
+        compat: {
+            wide_input_strict_output: compatRaw.wide_input_strict_output !== false,
+            preset: String(compatRaw.preset || 'default'),
+            reasoner_prompt_mode_override: String(compatRaw.reasoner_prompt_mode_override || ''),
+            reasoning_exposure_override: String(compatRaw.reasoning_exposure_override || ''),
+            upstream_profile_override: String(compatRaw.upstream_profile_override || ''),
+            effective_reasoner_prompt_mode: String(data.effective_reasoner_prompt_mode || 'default'),
+            effective_reasoning_exposure: String(data.effective_reasoning_exposure || 'always'),
+            effective_upstream_profile: String(data.effective_upstream_profile || 'android'),
         },
         auto_delete: {
             sessions: Boolean(data.auto_delete?.sessions || false),
@@ -71,6 +92,13 @@ function toServerPayload(form) {
         },
         responses: { store_ttl_seconds: Number(form.responses.store_ttl_seconds) },
         embeddings: { provider: String(form.embeddings.provider || '').trim() },
+        compat: {
+            wide_input_strict_output: Boolean(form.compat?.wide_input_strict_output),
+            preset: String(form.compat?.preset || '').trim(),
+            reasoner_prompt_mode_override: String(form.compat?.reasoner_prompt_mode_override || '').trim(),
+            reasoning_exposure_override: String(form.compat?.reasoning_exposure_override || '').trim(),
+            upstream_profile_override: String(form.compat?.upstream_profile_override || '').trim(),
+        },
         auto_delete: { sessions: Boolean(form.auto_delete?.sessions) },
     }
 }

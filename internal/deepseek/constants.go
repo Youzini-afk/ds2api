@@ -3,6 +3,7 @@ package deepseek
 import (
 	_ "embed"
 	"encoding/json"
+	"strings"
 )
 
 const (
@@ -27,6 +28,18 @@ var defaultBaseHeaders = map[string]string{
 	"accept-charset":    "UTF-8",
 }
 
+var defaultWebHeaderOverrides = map[string]string{
+	"User-Agent":        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+	"Accept":            "application/json, text/plain, */*",
+	"Content-Type":      "application/json",
+	"Origin":            "https://chat.deepseek.com",
+	"Referer":           "https://chat.deepseek.com/",
+	"accept-language":   "zh-CN,zh;q=0.9,en;q=0.8",
+	"x-client-platform": "web",
+	"x-client-version":  "1.0.0",
+	"x-client-locale":   "zh_CN",
+}
+
 var defaultSkipContainsPatterns = []string{
 	"quasi_status",
 	"elapsed_secs",
@@ -43,6 +56,7 @@ var defaultSkipExactPaths = []string{
 }
 
 var BaseHeaders = cloneStringMap(defaultBaseHeaders)
+var WebBaseHeaders = deriveWebBaseHeaders(BaseHeaders)
 var SkipContainsPatterns = cloneStringSlice(defaultSkipContainsPatterns)
 var SkipExactPathSet = toStringSet(defaultSkipExactPaths)
 
@@ -63,12 +77,39 @@ func init() {
 	if len(cfg.BaseHeaders) > 0 {
 		BaseHeaders = cloneStringMap(cfg.BaseHeaders)
 	}
+	WebBaseHeaders = deriveWebBaseHeaders(BaseHeaders)
 	if len(cfg.SkipContainsPattern) > 0 {
 		SkipContainsPatterns = cloneStringSlice(cfg.SkipContainsPattern)
 	}
 	if len(cfg.SkipExactPaths) > 0 {
 		SkipExactPathSet = toStringSet(cfg.SkipExactPaths)
 	}
+}
+
+func BaseHeadersForProfile(profile string) map[string]string {
+	switch normalizeUpstreamProfile(profile) {
+	case "web":
+		return cloneStringMap(WebBaseHeaders)
+	default:
+		return cloneStringMap(BaseHeaders)
+	}
+}
+
+func normalizeUpstreamProfile(profile string) string {
+	switch strings.ToLower(strings.TrimSpace(profile)) {
+	case "web":
+		return "web"
+	default:
+		return "android"
+	}
+}
+
+func deriveWebBaseHeaders(base map[string]string) map[string]string {
+	out := cloneStringMap(base)
+	for k, v := range defaultWebHeaderOverrides {
+		out[k] = v
+	}
+	return out
 }
 
 func cloneStringMap(in map[string]string) map[string]string {

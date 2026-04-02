@@ -178,3 +178,48 @@ func TestNormalizeOpenAIResponsesRequestToolChoiceNoneKeepsToolDetectionEnabled(
 		t.Fatalf("expected tool detection sentinel when tool_choice=none, got %#v", n.ToolNames)
 	}
 }
+
+func TestNormalizeOpenAIChatRequestExposeReasoningAlwaysByDefault(t *testing.T) {
+	store := newEmptyStoreForNormalizeTest(t)
+	req := map[string]any{
+		"model": "deepseek-reasoner",
+		"messages": []any{
+			map[string]any{"role": "user", "content": "hello"},
+		},
+	}
+	n, err := normalizeOpenAIChatRequest(store, req, "")
+	if err != nil {
+		t.Fatalf("normalize failed: %v", err)
+	}
+	if !n.ExposeReasoning {
+		t.Fatalf("expected expose_reasoning=true in always mode")
+	}
+}
+
+func TestNormalizeOpenAIChatRequestExposeReasoningRequestOptIn(t *testing.T) {
+	t.Setenv("DS2API_CONFIG_JSON", `{"compat":{"preset":"shallowseek_compat"}}`)
+	store := config.LoadStore()
+	req := map[string]any{
+		"model": "deepseek-reasoner",
+		"messages": []any{
+			map[string]any{"role": "user", "content": "hello"},
+		},
+	}
+
+	n, err := normalizeOpenAIChatRequest(store, req, "")
+	if err != nil {
+		t.Fatalf("normalize failed: %v", err)
+	}
+	if n.ExposeReasoning {
+		t.Fatalf("expected expose_reasoning=false when include_reasoning is omitted in request_opt_in mode")
+	}
+
+	req["include_reasoning"] = true
+	n2, err := normalizeOpenAIChatRequest(store, req, "")
+	if err != nil {
+		t.Fatalf("normalize failed: %v", err)
+	}
+	if !n2.ExposeReasoning {
+		t.Fatalf("expected expose_reasoning=true when include_reasoning=true in request_opt_in mode")
+	}
+}

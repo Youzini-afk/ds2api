@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-export function useApiTesterState({ t }) {
+export function useApiTesterState({ t, config }) {
     const [model, setModel] = useState('deepseek-chat')
     const defaultMessage = t('apiTester.defaultMessage')
     const [message, setMessage] = useState(defaultMessage)
@@ -12,6 +12,7 @@ export function useApiTesterState({ t }) {
     const [streamingThinking, setStreamingThinking] = useState('')
     const [isStreaming, setIsStreaming] = useState(false)
     const [streamingMode, setStreamingMode] = useState(true)
+    const [includeReasoning, setIncludeReasoning] = useState(true)
     const [configExpanded, setConfigExpanded] = useState(false)
 
     const abortControllerRef = useRef(null)
@@ -21,6 +22,11 @@ export function useApiTesterState({ t }) {
         setMessage((prev) => (prev === defaultMessageRef.current ? defaultMessage : prev))
         defaultMessageRef.current = defaultMessage
     }, [defaultMessage])
+
+    useEffect(() => {
+        const exposure = String(config?.effective_reasoning_exposure || 'always').trim().toLowerCase()
+        setIncludeReasoning(exposure !== 'request_opt_in')
+    }, [config?.effective_reasoning_exposure])
 
     return {
         model,
@@ -43,6 +49,8 @@ export function useApiTesterState({ t }) {
         setIsStreaming,
         streamingMode,
         setStreamingMode,
+        includeReasoning,
+        setIncludeReasoning,
         configExpanded,
         setConfigExpanded,
         abortControllerRef,

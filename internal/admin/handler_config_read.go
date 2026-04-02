@@ -7,6 +7,7 @@ import (
 
 func (h *Handler) getConfig(w http.ResponseWriter, _ *http.Request) {
 	snap := h.Store.Snapshot()
+	effectiveCompat := h.Store.CompatEffective()
 	safe := map[string]any{
 		"keys":                  snap.Keys,
 		"accounts":              []map[string]any{},
@@ -20,6 +21,10 @@ func (h *Handler) getConfig(w http.ResponseWriter, _ *http.Request) {
 			}
 			return snap.ClaudeModelMap
 		}(),
+		"compat":                         snap.Compat,
+		"effective_reasoner_prompt_mode": effectiveCompat.ReasonerPromptMode,
+		"effective_reasoning_exposure":   effectiveCompat.ReasoningExposure,
+		"effective_upstream_profile":     effectiveCompat.UpstreamProfile,
 	}
 	accounts := make([]map[string]any, 0, len(snap.Accounts))
 	for _, acc := range snap.Accounts {

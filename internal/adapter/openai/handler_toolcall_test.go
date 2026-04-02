@@ -129,7 +129,7 @@ func TestHandleNonStreamToolCallInterceptsChatModel(t *testing.T) {
 	)
 	rec := httptest.NewRecorder()
 
-	h.handleNonStream(rec, context.Background(), resp, "cid1", "deepseek-chat", "prompt", false, []string{"search"})
+	h.handleNonStream(rec, context.Background(), resp, "cid1", "deepseek-chat", "prompt", false, true, []string{"search"})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("unexpected status: %d", rec.Code)
 	}
@@ -162,7 +162,7 @@ func TestHandleNonStreamToolCallInterceptsReasonerModel(t *testing.T) {
 	)
 	rec := httptest.NewRecorder()
 
-	h.handleNonStream(rec, context.Background(), resp, "cid2", "deepseek-reasoner", "prompt", true, []string{"search"})
+	h.handleNonStream(rec, context.Background(), resp, "cid2", "deepseek-reasoner", "prompt", true, true, []string{"search"})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("unexpected status: %d", rec.Code)
 	}
@@ -190,7 +190,7 @@ func TestHandleNonStreamUnknownToolIntercepted(t *testing.T) {
 	)
 	rec := httptest.NewRecorder()
 
-	h.handleNonStream(rec, context.Background(), resp, "cid2b", "deepseek-chat", "prompt", false, []string{"search"})
+	h.handleNonStream(rec, context.Background(), resp, "cid2b", "deepseek-chat", "prompt", false, true, []string{"search"})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("unexpected status: %d", rec.Code)
 	}
@@ -218,7 +218,7 @@ func TestHandleNonStreamEmbeddedToolCallExamplePromotesToolCall(t *testing.T) {
 	)
 	rec := httptest.NewRecorder()
 
-	h.handleNonStream(rec, context.Background(), resp, "cid2c", "deepseek-chat", "prompt", false, []string{"search"})
+	h.handleNonStream(rec, context.Background(), resp, "cid2c", "deepseek-chat", "prompt", false, true, []string{"search"})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("unexpected status: %d", rec.Code)
 	}
@@ -248,7 +248,7 @@ func TestHandleNonStreamFencedToolCallExampleDoesNotPromoteToolCall(t *testing.T
 	)
 	rec := httptest.NewRecorder()
 
-	h.handleNonStream(rec, context.Background(), resp, "cid2d", "deepseek-chat", "prompt", false, []string{"search"})
+	h.handleNonStream(rec, context.Background(), resp, "cid2d", "deepseek-chat", "prompt", false, true, []string{"search"})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("unexpected status: %d", rec.Code)
 	}
@@ -285,7 +285,7 @@ func TestHandleStreamToolCallInterceptsWithoutRawContentLeak(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid3", "deepseek-chat", "prompt", false, false, []string{"search"})
+	h.handleStream(rec, req, resp, "cid3", "deepseek-chat", "prompt", false, true, false, []string{"search"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {
@@ -333,7 +333,7 @@ func TestHandleStreamToolCallLargeArgumentsStillIntercepted(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid3-large", "deepseek-chat", "prompt", false, false, []string{"search"})
+	h.handleStream(rec, req, resp, "cid3-large", "deepseek-chat", "prompt", false, true, false, []string{"search"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {
@@ -360,7 +360,7 @@ func TestHandleStreamReasonerToolCallInterceptsWithoutRawContentLeak(t *testing.
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid4", "deepseek-reasoner", "prompt", true, false, []string{"search"})
+	h.handleStream(rec, req, resp, "cid4", "deepseek-reasoner", "prompt", true, true, false, []string{"search"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {
@@ -419,7 +419,7 @@ func TestHandleStreamUnknownToolEmitsToolCall(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid5", "deepseek-chat", "prompt", false, false, []string{"search"})
+	h.handleStream(rec, req, resp, "cid5", "deepseek-chat", "prompt", false, true, false, []string{"search"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {
@@ -445,7 +445,7 @@ func TestHandleStreamUnknownToolNoArgsEmitsToolCall(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid5b", "deepseek-chat", "prompt", false, false, []string{"search"})
+	h.handleStream(rec, req, resp, "cid5b", "deepseek-chat", "prompt", false, true, false, []string{"search"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {
@@ -472,7 +472,7 @@ func TestHandleStreamToolsPlainTextStreamsBeforeFinish(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid6", "deepseek-chat", "prompt", false, false, []string{"search"})
+	h.handleStream(rec, req, resp, "cid6", "deepseek-chat", "prompt", false, true, false, []string{"search"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {
@@ -511,7 +511,7 @@ func TestHandleStreamToolCallMixedWithPlainTextSegments(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid7", "deepseek-chat", "prompt", false, false, []string{"search"})
+	h.handleStream(rec, req, resp, "cid7", "deepseek-chat", "prompt", false, true, false, []string{"search"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {
@@ -550,7 +550,7 @@ func TestHandleStreamToolCallAfterLeadingTextRemainsText(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid7b", "deepseek-chat", "prompt", false, false, []string{"search"})
+	h.handleStream(rec, req, resp, "cid7b", "deepseek-chat", "prompt", false, true, false, []string{"search"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {
@@ -589,7 +589,7 @@ func TestHandleStreamToolCallWithSameChunkTrailingTextRemainsText(t *testing.T) 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid7c", "deepseek-chat", "prompt", false, false, []string{"search"})
+	h.handleStream(rec, req, resp, "cid7c", "deepseek-chat", "prompt", false, true, false, []string{"search"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {
@@ -629,7 +629,7 @@ func TestHandleStreamFencedToolCallSnippetPromotesToolCall(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid7f", "deepseek-chat", "prompt", false, false, []string{"search"})
+	h.handleStream(rec, req, resp, "cid7f", "deepseek-chat", "prompt", false, true, false, []string{"search"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {
@@ -671,7 +671,7 @@ func TestHandleStreamStandaloneToolCallAfterClosedFenceKeepsFence(t *testing.T) 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid7g", "deepseek-chat", "prompt", false, false, []string{"search"})
+	h.handleStream(rec, req, resp, "cid7g", "deepseek-chat", "prompt", false, true, false, []string{"search"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {
@@ -712,7 +712,7 @@ func TestHandleStreamToolCallKeyAppearsLateRemainsText(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid8", "deepseek-chat", "prompt", false, false, []string{"search"})
+	h.handleStream(rec, req, resp, "cid8", "deepseek-chat", "prompt", false, true, false, []string{"search"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {
@@ -752,7 +752,7 @@ func TestHandleStreamInvalidToolJSONDoesNotLeakRawObject(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid9", "deepseek-chat", "prompt", false, false, []string{"search"})
+	h.handleStream(rec, req, resp, "cid9", "deepseek-chat", "prompt", false, true, false, []string{"search"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {
@@ -790,7 +790,7 @@ func TestHandleStreamIncompleteCapturedToolJSONFlushesAsTextOnFinalize(t *testin
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid10", "deepseek-chat", "prompt", false, false, []string{"search"})
+	h.handleStream(rec, req, resp, "cid10", "deepseek-chat", "prompt", false, true, false, []string{"search"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {
@@ -825,7 +825,7 @@ func TestHandleStreamToolCallArgumentsEmitAsSingleCompletedChunk(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid11", "deepseek-chat", "prompt", false, false, []string{"search"})
+	h.handleStream(rec, req, resp, "cid11", "deepseek-chat", "prompt", false, true, false, []string{"search"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {
@@ -860,7 +860,7 @@ func TestHandleStreamMultiToolCallDoesNotMergeNamesOrArguments(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 
-	h.handleStream(rec, req, resp, "cid12", "deepseek-chat", "prompt", false, false, []string{"search_web", "eval_javascript"})
+	h.handleStream(rec, req, resp, "cid12", "deepseek-chat", "prompt", false, true, false, []string{"search_web", "eval_javascript"})
 
 	frames, done := parseSSEDataFrames(t, rec.Body.String())
 	if !done {

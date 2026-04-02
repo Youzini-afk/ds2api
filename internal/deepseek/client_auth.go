@@ -137,11 +137,18 @@ func (c *Client) GetPow(ctx context.Context, a *auth.RequestAuth, maxAttempts in
 
 func (c *Client) authHeaders(token string) map[string]string {
 	headers := make(map[string]string, len(BaseHeaders)+1)
-	for k, v := range BaseHeaders {
+	for k, v := range BaseHeadersForProfile(c.compatUpstreamProfile()) {
 		headers[k] = v
 	}
 	headers["authorization"] = "Bearer " + token
 	return headers
+}
+
+func (c *Client) compatUpstreamProfile() string {
+	if c == nil || c.Store == nil {
+		return "android"
+	}
+	return c.Store.CompatUpstreamProfile()
 }
 
 func isTokenInvalid(status int, code int, bizCode int, msg string, bizMsg string) bool {

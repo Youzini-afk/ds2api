@@ -32,7 +32,7 @@ func TestHandleResponsesStreamToolCallsHideRawOutputTextInCompleted(t *testing.T
 		Body:       io.NopCloser(strings.NewReader(streamBody)),
 	}
 
-	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, false, []string{"read_file"}, util.DefaultToolChoicePolicy(), "")
+	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, true, false, []string{"read_file"}, util.DefaultToolChoicePolicy(), "")
 
 	completed, ok := extractSSEEventPayload(rec.Body.String(), "response.completed")
 	if !ok {
@@ -91,7 +91,7 @@ func TestHandleResponsesStreamUsesOfficialOutputItemEvents(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader(streamBody)),
 	}
 
-	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, false, []string{"read_file"}, util.DefaultToolChoicePolicy(), "")
+	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, true, false, []string{"read_file"}, util.DefaultToolChoicePolicy(), "")
 	body := rec.Body.String()
 	if !strings.Contains(body, "event: response.output_item.added") {
 		t.Fatalf("expected response.output_item.added event, body=%s", body)
@@ -170,7 +170,7 @@ func TestHandleResponsesStreamDoesNotEmitReasoningTextCompatEvents(t *testing.T)
 		Body:       io.NopCloser(strings.NewReader(streamBody)),
 	}
 
-	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-reasoner", "prompt", true, false, nil, util.DefaultToolChoicePolicy(), "")
+	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-reasoner", "prompt", true, true, false, nil, util.DefaultToolChoicePolicy(), "")
 
 	body := rec.Body.String()
 	if !strings.Contains(body, "event: response.reasoning.delta") {
@@ -202,7 +202,7 @@ func TestHandleResponsesStreamMultiToolCallKeepsNameAndCallIDAligned(t *testing.
 		Body:       io.NopCloser(strings.NewReader(streamBody)),
 	}
 
-	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, false, []string{"search_web", "eval_javascript"}, util.DefaultToolChoicePolicy(), "")
+	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, true, false, []string{"search_web", "eval_javascript"}, util.DefaultToolChoicePolicy(), "")
 
 	body := rec.Body.String()
 	donePayloads := extractAllSSEEventPayloads(body, "response.function_call_arguments.done")
@@ -245,7 +245,7 @@ func TestHandleResponsesStreamEmitsOutputTextDoneBeforeContentPartDone(t *testin
 		Body:       io.NopCloser(strings.NewReader(streamBody)),
 	}
 
-	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, false, nil, util.DefaultToolChoicePolicy(), "")
+	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, true, false, nil, util.DefaultToolChoicePolicy(), "")
 	body := rec.Body.String()
 	if !strings.Contains(body, "event: response.output_text.done") {
 		t.Fatalf("expected response.output_text.done payload, body=%s", body)
@@ -279,7 +279,7 @@ func TestHandleResponsesStreamOutputTextDeltaCarriesItemIndexes(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader(streamBody)),
 	}
 
-	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, false, nil, util.DefaultToolChoicePolicy(), "")
+	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, true, false, nil, util.DefaultToolChoicePolicy(), "")
 	body := rec.Body.String()
 
 	deltaPayload, ok := extractSSEEventPayload(body, "response.output_text.delta")
@@ -319,7 +319,7 @@ func TestHandleResponsesStreamThinkingAndMixedToolExampleEmitsFunctionCall(t *te
 		Body:       io.NopCloser(strings.NewReader(streamBody)),
 	}
 
-	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-reasoner", "prompt", true, false, []string{"read_file"}, util.DefaultToolChoicePolicy(), "")
+	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-reasoner", "prompt", true, true, false, []string{"read_file"}, util.DefaultToolChoicePolicy(), "")
 
 	addedPayloads := extractAllSSEEventPayloads(rec.Body.String(), "response.output_item.added")
 	if len(addedPayloads) < 1 {
@@ -374,7 +374,7 @@ func TestHandleResponsesStreamToolChoiceNoneStillAllowsFunctionCall(t *testing.T
 	}
 	policy := util.ToolChoicePolicy{Mode: util.ToolChoiceNone}
 
-	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, false, nil, policy, "")
+	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, true, false, nil, policy, "")
 	body := rec.Body.String()
 	if !strings.Contains(body, "event: response.function_call_arguments.done") {
 		t.Fatalf("expected function_call events for tool_choice=none, body=%s", body)
@@ -401,7 +401,7 @@ func TestHandleResponsesStreamMalformedToolJSONFallsBackToText(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader(streamBody)),
 	}
 
-	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, false, []string{"read_file"}, util.DefaultToolChoicePolicy(), "")
+	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, true, false, []string{"read_file"}, util.DefaultToolChoicePolicy(), "")
 	body := rec.Body.String()
 	if strings.Contains(body, "event: response.function_call_arguments.delta") || strings.Contains(body, "event: response.function_call_arguments.done") {
 		t.Fatalf("did not expect function_call events for malformed payload in strict mode, body=%s", body)
@@ -437,7 +437,7 @@ func TestHandleResponsesStreamRequiredToolChoiceFailure(t *testing.T) {
 		Mode:    util.ToolChoiceRequired,
 		Allowed: map[string]struct{}{"read_file": {}},
 	}
-	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, false, []string{"read_file"}, policy, "")
+	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, true, false, []string{"read_file"}, policy, "")
 
 	body := rec.Body.String()
 	if !strings.Contains(body, "event: response.failed") {
@@ -474,7 +474,7 @@ func TestHandleResponsesStreamRequiredToolChoiceIgnoresThinkingToolPayload(t *te
 		Allowed: map[string]struct{}{"read_file": {}},
 	}
 
-	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", true, false, []string{"read_file"}, policy, "")
+	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", true, true, false, []string{"read_file"}, policy, "")
 	body := rec.Body.String()
 	if !strings.Contains(body, "event: response.failed") {
 		t.Fatalf("expected response.failed event for required tool_choice violation, body=%s", body)
@@ -507,7 +507,7 @@ func TestHandleResponsesStreamRequiredMalformedToolPayloadFails(t *testing.T) {
 		Allowed: map[string]struct{}{"read_file": {}},
 	}
 
-	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, false, []string{"read_file"}, policy, "")
+	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, true, false, []string{"read_file"}, policy, "")
 
 	body := rec.Body.String()
 	if !strings.Contains(body, "event: response.failed") {
@@ -537,7 +537,7 @@ func TestHandleResponsesStreamAllowsUnknownToolName(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader(streamBody)),
 	}
 
-	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, false, []string{"read_file"}, util.DefaultToolChoicePolicy(), "")
+	h.handleResponsesStream(rec, req, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, true, false, []string{"read_file"}, util.DefaultToolChoicePolicy(), "")
 	body := rec.Body.String()
 	if !strings.Contains(body, "event: response.function_call_arguments.done") {
 		t.Fatalf("expected function_call events for unknown tool, body=%s", body)
@@ -559,7 +559,7 @@ func TestHandleResponsesNonStreamRequiredToolChoiceViolation(t *testing.T) {
 		Allowed: map[string]struct{}{"read_file": {}},
 	}
 
-	h.handleResponsesNonStream(rec, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, []string{"read_file"}, policy, "")
+	h.handleResponsesNonStream(rec, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, true, []string{"read_file"}, policy, "")
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("expected 422 for required tool_choice violation, got %d body=%s", rec.Code, rec.Body.String())
 	}
@@ -586,7 +586,7 @@ func TestHandleResponsesNonStreamRequiredToolChoiceIgnoresThinkingToolPayload(t 
 		Allowed: map[string]struct{}{"read_file": {}},
 	}
 
-	h.handleResponsesNonStream(rec, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", true, []string{"read_file"}, policy, "")
+	h.handleResponsesNonStream(rec, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", true, true, []string{"read_file"}, policy, "")
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("expected 422 for required tool_choice violation, got %d body=%s", rec.Code, rec.Body.String())
 	}
@@ -609,7 +609,7 @@ func TestHandleResponsesNonStreamToolChoiceNoneStillAllowsFunctionCall(t *testin
 	}
 	policy := util.ToolChoicePolicy{Mode: util.ToolChoiceNone}
 
-	h.handleResponsesNonStream(rec, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, nil, policy, "")
+	h.handleResponsesNonStream(rec, resp, "owner-a", "resp_test", "deepseek-chat", "prompt", false, true, nil, policy, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 for tool_choice=none handling, got %d body=%s", rec.Code, rec.Body.String())
 	}

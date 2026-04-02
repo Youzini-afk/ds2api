@@ -5,6 +5,9 @@ import "testing"
 type mockOpenAIConfig struct {
 	aliases      map[string]string
 	wideInput    bool
+	reasonerMode string
+	reasoningExp string
+	upstreamProf string
 	toolMode     string
 	earlyEmit    string
 	responsesTTL int
@@ -14,6 +17,24 @@ type mockOpenAIConfig struct {
 func (m mockOpenAIConfig) ModelAliases() map[string]string { return m.aliases }
 func (m mockOpenAIConfig) CompatWideInputStrictOutput() bool {
 	return m.wideInput
+}
+func (m mockOpenAIConfig) CompatReasonerPromptMode() string {
+	if m.reasonerMode != "" {
+		return m.reasonerMode
+	}
+	return "default"
+}
+func (m mockOpenAIConfig) CompatReasoningExposure() string {
+	if m.reasoningExp != "" {
+		return m.reasoningExp
+	}
+	return "always"
+}
+func (m mockOpenAIConfig) CompatUpstreamProfile() string {
+	if m.upstreamProf != "" {
+		return m.upstreamProf
+	}
+	return "android"
 }
 func (m mockOpenAIConfig) ToolcallMode() string                { return m.toolMode }
 func (m mockOpenAIConfig) ToolcallEarlyEmitConfidence() string { return m.earlyEmit }

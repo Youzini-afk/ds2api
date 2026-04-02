@@ -7,11 +7,11 @@ import (
 	"ds2api/internal/util"
 )
 
-func BuildChatCompletion(completionID, model, finalPrompt, finalThinking, finalText string, toolNames []string) map[string]any {
+func BuildChatCompletion(completionID, model, finalPrompt, finalThinking, finalText string, toolNames []string, exposeReasoning bool) map[string]any {
 	detected := util.ParseStandaloneToolCallsDetailed(finalText, toolNames)
 	finishReason := "stop"
 	messageObj := map[string]any{"role": "assistant", "content": finalText}
-	if strings.TrimSpace(finalThinking) != "" {
+	if exposeReasoning && strings.TrimSpace(finalThinking) != "" {
 		messageObj["reasoning_content"] = finalThinking
 	}
 	if len(detected.Calls) > 0 {

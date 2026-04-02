@@ -36,7 +36,11 @@ func normalizeClaudeRequest(store ConfigReader, req map[string]any) (claudeNorma
 		thinkingEnabled = false
 		searchEnabled = false
 	}
-	finalPrompt := deepseek.MessagesPrepare(toMessageMaps(dsPayload["messages"]))
+	reasonerPromptMode := config.CompatReasonerPromptDefault
+	if store != nil {
+		reasonerPromptMode = store.CompatReasonerPromptMode()
+	}
+	finalPrompt := deepseek.MessagesPrepareWithCompat(toMessageMaps(dsPayload["messages"]), dsModel, reasonerPromptMode)
 	toolNames := extractClaudeToolNames(toolsRequested)
 	if len(toolNames) == 0 && len(toolsRequested) > 0 {
 		toolNames = []string{"__any_tool__"}

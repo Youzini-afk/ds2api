@@ -14,6 +14,7 @@ func TestBuildResponseObjectToolCallsFollowChatShape(t *testing.T) {
 		"",
 		`{"tool_calls":[{"name":"search","input":{"q":"golang"}}]}`,
 		[]string{"search"},
+		true,
 	)
 
 	outputText, _ := obj["output_text"].(string)
@@ -54,6 +55,7 @@ func TestBuildResponseObjectPromotesMixedProseToolPayloadToFunctionCall(t *testi
 		"",
 		`示例格式：{"tool_calls":[{"name":"search","input":{"q":"golang"}}]}，但这条是普通回答。`,
 		[]string{"search"},
+		true,
 	)
 
 	outputText, _ := obj["output_text"].(string)
@@ -78,6 +80,7 @@ func TestBuildResponseObjectKeepsFencedToolPayloadAsText(t *testing.T) {
 		"",
 		"```json\n{\"tool_calls\":[{\"name\":\"search\",\"input\":{\"q\":\"golang\"}}]}\n```",
 		[]string{"search"},
+		true,
 	)
 
 	outputText, _ := obj["output_text"].(string)
@@ -107,6 +110,7 @@ func TestBuildResponseObjectReasoningOnlyFallsBackToOutputText(t *testing.T) {
 		"internal thinking content",
 		"",
 		nil,
+		true,
 	)
 
 	outputText, _ := obj["output_text"].(string)
@@ -140,6 +144,7 @@ func TestBuildResponseObjectIgnoresToolCallFromThinkingChannel(t *testing.T) {
 		`{"tool_calls":[{"name":"search","input":{"q":"from-thinking"}}]}`,
 		"",
 		[]string{"search"},
+		true,
 	)
 
 	output, _ := obj["output"].([]any)

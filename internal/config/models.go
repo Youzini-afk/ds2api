@@ -82,6 +82,11 @@ func IsSupportedDeepSeekModel(model string) bool {
 	return ok
 }
 
+func IsReasonerModel(model string) bool {
+	thinking, _, ok := GetModelConfig(model)
+	return ok && thinking
+}
+
 func DefaultModelAliases() map[string]string {
 	return map[string]string{
 		"gpt-4o":                 "deepseek-chat",

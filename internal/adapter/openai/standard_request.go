@@ -24,9 +24,11 @@ func normalizeOpenAIChatRequest(store ConfigReader, req map[string]any, traceID 
 		responseModel = resolvedModel
 	}
 	toolPolicy := util.DefaultToolChoicePolicy()
-	finalPrompt, toolNames := buildOpenAIFinalPromptWithPolicy(messagesRaw, req["tools"], traceID, toolPolicy)
+	reasonerPromptMode := compatReasonerPromptMode(store)
+	finalPrompt, toolNames := buildOpenAIFinalPromptWithPolicy(messagesRaw, req["tools"], traceID, toolPolicy, resolvedModel, reasonerPromptMode)
 	toolNames = ensureToolDetectionEnabled(toolNames, req["tools"])
 	passThrough := collectOpenAIChatPassThrough(req)
+	exposeReasoning := shouldExposeReasoning(store, req)
 
 	return util.StandardRequest{
 		Surface:        "openai_chat",
@@ -39,6 +41,7 @@ func normalizeOpenAIChatRequest(store ConfigReader, req map[string]any, traceID 
 		ToolChoice:     toolPolicy,
 		Stream:         util.ToBool(req["stream"]),
 		Thinking:       thinkingEnabled,
+		ExposeReasoning: exposeReasoning,
 		Search:         searchEnabled,
 		PassThrough:    passThrough,
 	}, nil
@@ -74,12 +77,14 @@ func normalizeOpenAIResponsesRequest(store ConfigReader, req map[string]any, tra
 	if err != nil {
 		return util.StandardRequest{}, err
 	}
-	finalPrompt, toolNames := buildOpenAIFinalPromptWithPolicy(messagesRaw, req["tools"], traceID, toolPolicy)
+	reasonerPromptMode := compatReasonerPromptMode(store)
+	finalPrompt, toolNames := buildOpenAIFinalPromptWithPolicy(messagesRaw, req["tools"], traceID, toolPolicy, resolvedModel, reasonerPromptMode)
 	toolNames = ensureToolDetectionEnabled(toolNames, req["tools"])
 	if !toolPolicy.IsNone() {
 		toolPolicy.Allowed = namesToSet(toolNames)
 	}
 	passThrough := collectOpenAIChatPassThrough(req)
+	exposeReasoning := shouldExposeReasoning(store, req)
 
 	return util.StandardRequest{
 		Surface:        "openai_responses",
@@ -92,9 +97,28 @@ func normalizeOpenAIResponsesRequest(store ConfigReader, req map[string]any, tra
 		ToolChoice:     toolPolicy,
 		Stream:         util.ToBool(req["stream"]),
 		Thinking:       thinkingEnabled,
+		ExposeReasoning: exposeReasoning,
 		Search:         searchEnabled,
 		PassThrough:    passThrough,
 	}, nil
+}
+
+func compatReasonerPromptMode(store ConfigReader) string {
+	if store == nil {
+		return config.CompatReasonerPromptDefault
+	}
+	return store.CompatReasonerPromptMode()
+}
+
+func shouldExposeReasoning(store ConfigReader, req map[string]any) bool {
+	mode := config.CompatReasoningAlways
+	if store != nil {
+		mode = store.CompatReasoningExposure()
+	}
+	if mode == config.CompatReasoningRequestOptIn {
+		return util.ToBool(req["include_reasoning"])
+	}
+	return true
 }
 
 func ensureToolDetectionEnabled(toolNames []string, toolsRaw any) []string {

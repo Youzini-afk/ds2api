@@ -8,6 +8,7 @@ export function useChatStreamClient({
     effectiveKey,
     selectedAccount,
     streamingMode,
+    includeReasoning,
     abortControllerRef,
     setLoading,
     setIsStreaming,
@@ -71,14 +72,18 @@ export function useChatStreamClient({
             }
 
             const endpoint = streamingMode ? '/v1/chat/completions' : '/v1/chat/completions?__go=1'
+            const requestBody = {
+                model,
+                messages: [{ role: 'user', content: message }],
+                stream: streamingMode,
+            }
+            if (String(model || '').includes('reasoner')) {
+                requestBody.include_reasoning = Boolean(includeReasoning)
+            }
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({
-                    model,
-                    messages: [{ role: 'user', content: message }],
-                    stream: streamingMode,
-                }),
+                body: JSON.stringify(requestBody),
                 signal: abortControllerRef.current.signal,
             })
 
@@ -154,6 +159,7 @@ export function useChatStreamClient({
         extractErrorMessage,
         message,
         model,
+        includeReasoning,
         onMessage,
         selectedAccount,
         setIsStreaming,

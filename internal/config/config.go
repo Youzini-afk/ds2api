@@ -51,7 +51,11 @@ func (c *Config) DropInvalidAccounts() {
 }
 
 type CompatConfig struct {
-	WideInputStrictOutput *bool `json:"wide_input_strict_output,omitempty"`
+	WideInputStrictOutput      *bool  `json:"wide_input_strict_output,omitempty"`
+	Preset                     string `json:"preset,omitempty"`
+	ReasonerPromptModeOverride string `json:"reasoner_prompt_mode_override,omitempty"`
+	ReasoningExposureOverride  string `json:"reasoning_exposure_override,omitempty"`
+	UpstreamProfileOverride    string `json:"upstream_profile_override,omitempty"`
 }
 
 type AdminConfig struct {

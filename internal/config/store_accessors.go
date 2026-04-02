@@ -42,6 +42,24 @@ func (s *Store) CompatWideInputStrictOutput() bool {
 	return *s.cfg.Compat.WideInputStrictOutput
 }
 
+func (s *Store) CompatEffective() EffectiveCompat {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return ResolveCompat(s.cfg.Compat)
+}
+
+func (s *Store) CompatReasonerPromptMode() string {
+	return s.CompatEffective().ReasonerPromptMode
+}
+
+func (s *Store) CompatReasoningExposure() string {
+	return s.CompatEffective().ReasoningExposure
+}
+
+func (s *Store) CompatUpstreamProfile() string {
+	return s.CompatEffective().UpstreamProfile
+}
+
 func (s *Store) ToolcallMode() string {
 	return "feature_match"
 }

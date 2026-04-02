@@ -47,6 +47,48 @@ func TestGetSettingsIncludesTokenRefreshInterval(t *testing.T) {
 	}
 }
 
+func TestGetSettingsIncludesCompatEffectiveFields(t *testing.T) {
+	h := newAdminTestHandler(t, `{
+		"keys":["k1"],
+		"compat":{"preset":"shallowseek_compat"}
+	}`)
+	req := httptest.NewRequest(http.MethodGet, "/admin/settings", nil)
+	rec := httptest.NewRecorder()
+	h.getSettings(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	if got := fieldString(body, "effective_reasoner_prompt_mode"); got != "end_of_thinking" {
+		t.Fatalf("unexpected effective_reasoner_prompt_mode=%q", got)
+	}
+	if got := fieldString(body, "effective_reasoning_exposure"); got != "request_opt_in" {
+		t.Fatalf("unexpected effective_reasoning_exposure=%q", got)
+	}
+	if got := fieldString(body, "effective_upstream_profile"); got != "web" {
+		t.Fatalf("unexpected effective_upstream_profile=%q", got)
+	}
+}
+
+func TestGetConfigIncludesCompatEffectiveFields(t *testing.T) {
+	h := newAdminTestHandler(t, `{
+		"keys":["k1"],
+		"compat":{"preset":"shallowseek_compat"}
+	}`)
+	req := httptest.NewRequest(http.MethodGet, "/admin/config", nil)
+	rec := httptest.NewRecorder()
+	h.getConfig(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	if got := fieldString(body, "effective_reasoning_exposure"); got != "request_opt_in" {
+		t.Fatalf("unexpected effective_reasoning_exposure=%q", got)
+	}
+}
+
 func TestUpdateSettingsValidation(t *testing.T) {
 	h := newAdminTestHandler(t, `{"keys":["k1"]}`)
 	payload := map[string]any{
@@ -79,6 +121,55 @@ func TestUpdateSettingsValidationRejectsTokenRefreshInterval(t *testing.T) {
 	}
 	if !bytes.Contains(rec.Body.Bytes(), []byte("runtime.token_refresh_interval_hours")) {
 		t.Fatalf("expected token refresh validation detail, got %s", rec.Body.String())
+	}
+}
+
+func TestUpdateSettingsCompatPresetAndOverrides(t *testing.T) {
+	h := newAdminTestHandler(t, `{"keys":["k1"]}`)
+	payload := map[string]any{
+		"compat": map[string]any{
+			"preset":                         "shallowseek_compat",
+			"reasoner_prompt_mode_override":  "default",
+			"reasoning_exposure_override":    "request_opt_in",
+			"upstream_profile_override":      "web",
+			"wide_input_strict_output":       false,
+		},
+	}
+	b, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPut, "/admin/settings", bytes.NewReader(b))
+	rec := httptest.NewRecorder()
+	h.updateSettings(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	snap := h.Store.Snapshot()
+	if snap.Compat.Preset != "shallowseek_compat" {
+		t.Fatalf("unexpected compat preset: %#v", snap.Compat)
+	}
+	if snap.Compat.WideInputStrictOutput == nil || *snap.Compat.WideInputStrictOutput {
+		t.Fatalf("expected compat.wide_input_strict_output=false, got %#v", snap.Compat.WideInputStrictOutput)
+	}
+	if snap.Compat.ReasonerPromptModeOverride != "default" {
+		t.Fatalf("unexpected reasoner_prompt_mode_override=%q", snap.Compat.ReasonerPromptModeOverride)
+	}
+}
+
+func TestUpdateSettingsRejectsInvalidCompat(t *testing.T) {
+	h := newAdminTestHandler(t, `{"keys":["k1"]}`)
+	payload := map[string]any{
+		"compat": map[string]any{
+			"preset": "bad",
+		},
+	}
+	b, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPut, "/admin/settings", bytes.NewReader(b))
+	rec := httptest.NewRecorder()
+	h.updateSettings(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if !bytes.Contains(rec.Body.Bytes(), []byte("compat.preset")) {
+		t.Fatalf("expected compat validation detail, got %s", rec.Body.String())
 	}
 }
 
@@ -374,6 +465,32 @@ func TestConfigImportMergeDedupesMobileAliases(t *testing.T) {
 	}
 	if got := len(h.Store.Accounts()); got != 1 {
 		t.Fatalf("expected merge dedupe by canonical mobile, got=%d", got)
+	}
+}
+
+func TestConfigImportMergeCompatAllowsClearingOverride(t *testing.T) {
+	h := newAdminTestHandler(t, `{
+		"keys":["k1"],
+		"compat":{"preset":"shallowseek_compat","upstream_profile_override":"web"}
+	}`)
+
+	merge := map[string]any{
+		"mode": "merge",
+		"config": map[string]any{
+			"compat": map[string]any{
+				"upstream_profile_override": "",
+			},
+		},
+	}
+	b, _ := json.Marshal(merge)
+	req := httptest.NewRequest(http.MethodPost, "/admin/config/import?mode=merge", bytes.NewReader(b))
+	rec := httptest.NewRecorder()
+	h.configImport(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if got := h.Store.Snapshot().Compat.UpstreamProfileOverride; got != "" {
+		t.Fatalf("expected upstream_profile_override to be cleared, got %q", got)
 	}
 }
 

@@ -23,6 +23,7 @@ type chatStreamRuntime struct {
 	toolNames    []string
 
 	thinkingEnabled bool
+	exposeReasoning bool
 	searchEnabled   bool
 
 	firstChunkSent       bool
@@ -47,6 +48,7 @@ func newChatStreamRuntime(
 	model string,
 	finalPrompt string,
 	thinkingEnabled bool,
+	exposeReasoning bool,
 	searchEnabled bool,
 	toolNames []string,
 	bufferToolContent bool,
@@ -62,6 +64,7 @@ func newChatStreamRuntime(
 		finalPrompt:         finalPrompt,
 		toolNames:           toolNames,
 		thinkingEnabled:     thinkingEnabled,
+		exposeReasoning:     exposeReasoning,
 		searchEnabled:       searchEnabled,
 		bufferToolContent:   bufferToolContent,
 		emitEarlyToolDeltas: emitEarlyToolDeltas,
@@ -204,7 +207,9 @@ func (s *chatStreamRuntime) onParsed(parsed sse.LineResult) streamengine.ParsedD
 		if p.Type == "thinking" {
 			if s.thinkingEnabled {
 				s.thinking.WriteString(p.Text)
-				delta["reasoning_content"] = p.Text
+				if s.exposeReasoning {
+					delta["reasoning_content"] = p.Text
+				}
 			}
 		} else {
 			s.text.WriteString(p.Text)

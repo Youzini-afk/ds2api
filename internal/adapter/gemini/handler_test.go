@@ -18,6 +18,7 @@ import (
 type testGeminiConfig struct{}
 
 func (testGeminiConfig) ModelAliases() map[string]string { return nil }
+func (testGeminiConfig) CompatReasonerPromptMode() string { return "default" }
 
 type testGeminiAuth struct {
 	a   *auth.RequestAuth

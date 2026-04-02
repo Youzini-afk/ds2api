@@ -13,3 +13,20 @@ func TestSharedConstantsLoaded(t *testing.T) {
 		t.Fatal("expected response/search_status in exact skip path set")
 	}
 }
+
+func TestBaseHeadersForProfileWeb(t *testing.T) {
+	web := BaseHeadersForProfile("web")
+	if web["x-client-platform"] != "web" {
+		t.Fatalf("expected web profile x-client-platform=web, got %q", web["x-client-platform"])
+	}
+	if web["Origin"] == "" || web["Referer"] == "" {
+		t.Fatalf("expected web profile Origin/Referer, got %#v", web)
+	}
+}
+
+func TestBaseHeadersForProfileDefaultAndroid(t *testing.T) {
+	android := BaseHeadersForProfile("unknown")
+	if android["x-client-platform"] != "android" {
+		t.Fatalf("expected android fallback profile, got %q", android["x-client-platform"])
+	}
+}

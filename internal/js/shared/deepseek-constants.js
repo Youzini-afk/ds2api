@@ -14,6 +14,18 @@ const DEFAULT_BASE_HEADERS = Object.freeze({
   'accept-charset': 'UTF-8',
 });
 
+const WEB_HEADER_OVERRIDES = Object.freeze({
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
+  Accept: 'application/json, text/plain, */*',
+  'Content-Type': 'application/json',
+  Origin: 'https://chat.deepseek.com',
+  Referer: 'https://chat.deepseek.com/',
+  'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
+  'x-client-platform': 'web',
+  'x-client-version': '1.0.0',
+  'x-client-locale': 'zh_CN',
+});
+
 const DEFAULT_SKIP_PATTERNS = Object.freeze([
   'quasi_status',
   'elapsed_secs',
@@ -61,6 +73,14 @@ const shared = loadSharedConstants();
 
 module.exports = {
   BASE_HEADERS: Object.freeze(shared.baseHeaders),
+  WEB_BASE_HEADERS: Object.freeze({ ...shared.baseHeaders, ...WEB_HEADER_OVERRIDES }),
+  baseHeadersForProfile(profile) {
+    const p = String(profile || '').trim().toLowerCase();
+    if (p === 'web') {
+      return { ...shared.baseHeaders, ...WEB_HEADER_OVERRIDES };
+    }
+    return { ...shared.baseHeaders };
+  },
   SKIP_PATTERNS: Object.freeze(shared.skipPatterns),
   SKIP_EXACT_PATHS: new Set(shared.skipExactPaths),
 };

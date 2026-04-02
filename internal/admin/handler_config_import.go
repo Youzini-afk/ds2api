@@ -147,6 +147,24 @@ func (h *Handler) configImport(w http.ResponseWriter, r *http.Request) {
 			if incoming.Runtime.TokenRefreshIntervalHours > 0 {
 				next.Runtime.TokenRefreshIntervalHours = incoming.Runtime.TokenRefreshIntervalHours
 			}
+			if rawCompat, ok := payload["compat"].(map[string]any); ok {
+				if v, exists := rawCompat["wide_input_strict_output"]; exists {
+					bv := boolFrom(v)
+					next.Compat.WideInputStrictOutput = &bv
+				}
+				if v, exists := rawCompat["preset"]; exists {
+					next.Compat.Preset = normalizeOptionalCompatToken(v)
+				}
+				if v, exists := rawCompat["reasoner_prompt_mode_override"]; exists {
+					next.Compat.ReasonerPromptModeOverride = normalizeOptionalCompatToken(v)
+				}
+				if v, exists := rawCompat["reasoning_exposure_override"]; exists {
+					next.Compat.ReasoningExposureOverride = normalizeOptionalCompatToken(v)
+				}
+				if v, exists := rawCompat["upstream_profile_override"]; exists {
+					next.Compat.UpstreamProfileOverride = normalizeOptionalCompatToken(v)
+				}
+			}
 		}
 
 		normalizeSettingsConfig(&next)
@@ -184,4 +202,11 @@ func (h *Handler) computeSyncHash() string {
 	b, _ := json.Marshal(snap)
 	sum := md5.Sum(b)
 	return fmt.Sprintf("%x", sum)
+}
+
+func normalizeOptionalCompatToken(v any) string {
+	if v == nil {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(fmt.Sprintf("%v", v)))
 }

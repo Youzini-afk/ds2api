@@ -28,7 +28,11 @@
     "o3": "deepseek-reasoner"
   },
   "compat": {
-    "wide_input_strict_output": true
+    "wide_input_strict_output": true,
+    "preset": "default",
+    "reasoner_prompt_mode_override": "",
+    "reasoning_exposure_override": "",
+    "upstream_profile_override": ""
   },
   "toolcall": {
     "mode": "feature_match",

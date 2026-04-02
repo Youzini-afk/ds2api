@@ -14,6 +14,7 @@ import (
 
 	"ds2api/internal/auth"
 	"ds2api/internal/config"
+	"ds2api/internal/deepseek"
 	"ds2api/internal/util"
 )
 
@@ -86,6 +87,11 @@ func (h *Handler) handleVercelStreamPrepare(w http.ResponseWriter, r *http.Reque
 	}
 
 	payload := stdReq.CompletionPayload(sessionID)
+	upstreamProfile := config.CompatUpstreamAndroid
+	if h.Store != nil {
+		upstreamProfile = h.Store.CompatUpstreamProfile()
+	}
+	upstreamBaseHeaders := deepseek.BaseHeadersForProfile(upstreamProfile)
 	leaseID := h.holdStreamLease(a)
 	if leaseID == "" {
 		writeOpenAIError(w, http.StatusInternalServerError, "failed to create stream lease")
@@ -98,8 +104,11 @@ func (h *Handler) handleVercelStreamPrepare(w http.ResponseWriter, r *http.Reque
 		"model":            stdReq.ResponseModel,
 		"final_prompt":     stdReq.FinalPrompt,
 		"thinking_enabled": stdReq.Thinking,
+		"expose_reasoning": stdReq.ExposeReasoning,
 		"search_enabled":   stdReq.Search,
 		"tool_names":       stdReq.ToolNames,
+		"upstream_profile": upstreamProfile,
+		"upstream_base_headers": upstreamBaseHeaders,
 		"deepseek_token":   a.DeepSeekToken,
 		"pow_header":       powHeader,
 		"payload":          payload,

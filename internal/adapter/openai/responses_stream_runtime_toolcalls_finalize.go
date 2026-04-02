@@ -58,6 +58,11 @@ func (s *responsesStreamRuntime) closeIncompleteFunctionItems() {
 }
 
 func (s *responsesStreamRuntime) buildCompletedResponseObject(finalThinking, finalText string, calls []util.ParsedToolCall) map[string]any {
+	exposedThinking := ""
+	if s.exposeReasoning {
+		exposedThinking = finalThinking
+	}
+
 	type indexedItem struct {
 		index int
 		item  map[string]any
@@ -83,10 +88,10 @@ func (s *responsesStreamRuntime) buildCompletedResponseObject(finalThinking, fin
 		})
 	} else if len(calls) == 0 {
 		content := make([]map[string]any, 0, 2)
-		if strings.TrimSpace(finalThinking) != "" {
+		if strings.TrimSpace(exposedThinking) != "" {
 			content = append(content, map[string]any{
 				"type": "reasoning",
-				"text": finalThinking,
+				"text": exposedThinking,
 			})
 		}
 		if strings.TrimSpace(finalText) != "" {
@@ -139,8 +144,8 @@ func (s *responsesStreamRuntime) buildCompletedResponseObject(finalThinking, fin
 	if strings.TrimSpace(outputText) == "" && len(calls) == 0 {
 		if strings.TrimSpace(finalText) != "" {
 			outputText = finalText
-		} else if strings.TrimSpace(finalThinking) != "" {
-			outputText = finalThinking
+		} else if strings.TrimSpace(exposedThinking) != "" {
+			outputText = exposedThinking
 		}
 	}
 

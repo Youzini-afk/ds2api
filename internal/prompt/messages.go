@@ -9,7 +9,15 @@ import (
 
 var markdownImagePattern = regexp.MustCompile(`!\[(.*?)\]\((.*?)\)`)
 
+type PrepareOptions struct {
+	ReasonerAssistantBoundary bool
+}
+
 func MessagesPrepare(messages []map[string]any) string {
+	return MessagesPrepareWithOptions(messages, PrepareOptions{})
+}
+
+func MessagesPrepareWithOptions(messages []map[string]any, opts PrepareOptions) string {
 	type block struct {
 		Role string
 		Text string
@@ -35,7 +43,11 @@ func MessagesPrepare(messages []map[string]any) string {
 	for i, m := range merged {
 		switch m.Role {
 		case "assistant":
-			parts = append(parts, "<｜Assistant｜>"+m.Text+"<｜end▁of▁sentence｜>")
+			prefix := "<｜Assistant｜>"
+			if opts.ReasonerAssistantBoundary {
+				prefix += "<｜end▁of▁thinking｜>"
+			}
+			parts = append(parts, prefix+m.Text+"<｜end▁of▁sentence｜>")
 		case "tool":
 			if i > 0 {
 				parts = append(parts, "<｜Tool｜>"+m.Text)

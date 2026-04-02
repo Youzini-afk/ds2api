@@ -24,6 +24,7 @@ type responsesStreamRuntime struct {
 	toolChoice  util.ToolChoicePolicy
 
 	thinkingEnabled bool
+	exposeReasoning bool
 	searchEnabled   bool
 
 	bufferToolContent    bool
@@ -61,6 +62,7 @@ func newResponsesStreamRuntime(
 	model string,
 	finalPrompt string,
 	thinkingEnabled bool,
+	exposeReasoning bool,
 	searchEnabled bool,
 	toolNames []string,
 	bufferToolContent bool,
@@ -77,6 +79,7 @@ func newResponsesStreamRuntime(
 		model:               model,
 		finalPrompt:         finalPrompt,
 		thinkingEnabled:     thinkingEnabled,
+		exposeReasoning:     exposeReasoning,
 		searchEnabled:       searchEnabled,
 		toolNames:           toolNames,
 		bufferToolContent:   bufferToolContent,
@@ -190,7 +193,9 @@ func (s *responsesStreamRuntime) onParsed(parsed sse.LineResult) streamengine.Pa
 				continue
 			}
 			s.thinking.WriteString(p.Text)
-			s.sendEvent("response.reasoning.delta", openaifmt.BuildResponsesReasoningDeltaPayload(s.responseID, p.Text))
+			if s.exposeReasoning {
+				s.sendEvent("response.reasoning.delta", openaifmt.BuildResponsesReasoningDeltaPayload(s.responseID, p.Text))
+			}
 			continue
 		}
 

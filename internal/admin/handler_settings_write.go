@@ -17,7 +17,7 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	adminCfg, runtimeCfg, responsesCfg, embeddingsCfg, autoDeleteCfg, claudeMap, aliasMap, err := parseSettingsUpdateRequest(req)
+	adminCfg, runtimeCfg, responsesCfg, embeddingsCfg, autoDeleteCfg, compatCfg, claudeMap, aliasMap, err := parseSettingsUpdateRequest(req)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"detail": err.Error()})
 		return
@@ -57,6 +57,24 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		if autoDeleteCfg != nil {
 			c.AutoDelete.Sessions = autoDeleteCfg.Sessions
+		}
+		if compatCfg != nil {
+			if compatCfg.HasWideInputStrictOutput {
+				v := compatCfg.WideInputStrictOutput
+				c.Compat.WideInputStrictOutput = &v
+			}
+			if compatCfg.HasPreset {
+				c.Compat.Preset = compatCfg.Preset
+			}
+			if compatCfg.HasReasonerPromptModeOverride {
+				c.Compat.ReasonerPromptModeOverride = compatCfg.ReasonerPromptModeOverride
+			}
+			if compatCfg.HasReasoningExposureOverride {
+				c.Compat.ReasoningExposureOverride = compatCfg.ReasoningExposureOverride
+			}
+			if compatCfg.HasUpstreamProfileOverride {
+				c.Compat.UpstreamProfileOverride = compatCfg.UpstreamProfileOverride
+			}
 		}
 		if claudeMap != nil {
 			c.ClaudeMapping = claudeMap

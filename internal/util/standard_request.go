@@ -11,6 +11,7 @@ type StandardRequest struct {
 	ToolChoice     ToolChoicePolicy
 	Stream         bool
 	Thinking       bool
+	ExposeReasoning bool
 	Search         bool
 	PassThrough    map[string]any
 }

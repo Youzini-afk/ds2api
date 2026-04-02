@@ -10,6 +10,7 @@ import (
 
 func (h *Handler) getSettings(w http.ResponseWriter, _ *http.Request) {
 	snap := h.Store.Snapshot()
+	effectiveCompat := h.Store.CompatEffective()
 	recommended := defaultRuntimeRecommended(len(snap.Accounts), h.Store.RuntimeAccountMaxInflight())
 	needsSync := config.IsVercel() && snap.VercelSyncHash != "" && snap.VercelSyncHash != h.computeSyncHash()
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -29,6 +30,10 @@ func (h *Handler) getSettings(w http.ResponseWriter, _ *http.Request) {
 		"responses":         snap.Responses,
 		"embeddings":        snap.Embeddings,
 		"auto_delete":       snap.AutoDelete,
+		"compat":            snap.Compat,
+		"effective_reasoner_prompt_mode": effectiveCompat.ReasonerPromptMode,
+		"effective_reasoning_exposure":   effectiveCompat.ReasoningExposure,
+		"effective_upstream_profile":     effectiveCompat.UpstreamProfile,
 		"claude_mapping":    settingsClaudeMapping(snap),
 		"model_aliases":     snap.ModelAliases,
 		"env_backed":        h.Store.IsEnvBacked(),

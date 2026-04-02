@@ -22,6 +22,7 @@ type DeepSeekCaller interface {
 
 type ConfigReader interface {
 	ClaudeMapping() map[string]string
+	CompatReasonerPromptMode() string
 }
 
 var _ AuthResolver = (*auth.Resolver)(nil)

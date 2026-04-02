@@ -7,7 +7,7 @@ const {
   parseStandaloneToolCalls,
   formatOpenAIStreamToolCalls,
 } = require('../helpers/stream-tool-sieve');
-const { BASE_HEADERS } = require('../shared/deepseek-constants');
+const { baseHeadersForProfile } = require('../shared/deepseek-constants');
 const { writeOpenAIError } = require('./error_shape');
 const { parseChunkForContent, isCitation } = require('./sse_parse');
 const { buildUsage } = require('./token_usage');
@@ -43,7 +43,10 @@ async function handleVercelStream(req, res, rawBody, payload) {
   const completionPayload = prep.body.payload && typeof prep.body.payload === 'object' ? prep.body.payload : null;
   const finalPrompt = asString(prep.body.final_prompt);
   const thinkingEnabled = toBool(prep.body.thinking_enabled);
+  const exposeReasoning = toBool(prep.body.expose_reasoning);
   const searchEnabled = toBool(prep.body.search_enabled);
+  const upstreamProfile = asString(prep.body.upstream_profile) || 'android';
+  const upstreamBaseHeaders = normalizeHeaderMap(prep.body.upstream_base_headers, baseHeadersForProfile(upstreamProfile));
   const toolPolicy = resolveToolcallPolicy(prep.body, payload.tools);
   const toolNames = toolPolicy.toolNames;
   const emitEarlyToolDeltas = toolPolicy.emitEarlyToolDeltas;
@@ -82,7 +85,7 @@ async function handleVercelStream(req, res, rawBody, payload) {
       completionRes = await fetch(DEEPSEEK_COMPLETION_URL, {
         method: 'POST',
         headers: {
-          ...BASE_HEADERS,
+          ...upstreamBaseHeaders,
           authorization: `Bearer ${deepseekToken}`,
           'x-ds-pow-response': powHeader,
         },
@@ -236,7 +239,9 @@ async function handleVercelStream(req, res, rawBody, payload) {
             if (p.type === 'thinking') {
               if (thinkingEnabled) {
                 thinkingText += p.text;
-                sendDeltaFrame({ reasoning_content: p.text });
+                if (exposeReasoning) {
+                  sendDeltaFrame({ reasoning_content: p.text });
+                }
               }
             } else {
               outputText += p.text;
@@ -288,6 +293,31 @@ async function handleVercelStream(req, res, rawBody, payload) {
 
 function toBool(v) {
   return v === true;
+}
+
+function normalizeHeaderMap(raw, fallback) {
+  const out = {};
+  const fromFallback = fallback && typeof fallback === 'object' ? fallback : {};
+  for (const [k, v] of Object.entries(fromFallback)) {
+    if (typeof v === 'string' && v) {
+      out[k] = v;
+    }
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return out;
+  }
+  for (const [k, v] of Object.entries(raw)) {
+    const key = String(k || '').trim();
+    if (!key) {
+      continue;
+    }
+    const val = typeof v === 'string' ? v.trim() : '';
+    if (!val) {
+      continue;
+    }
+    out[key] = val;
+  }
+  return out;
 }
 
 module.exports = {

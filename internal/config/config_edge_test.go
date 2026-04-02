@@ -359,6 +359,31 @@ func TestStoreCompatWideInputStrictOutputCanDisable(t *testing.T) {
 	}
 }
 
+func TestStoreCompatPresetMarshalAndEffective(t *testing.T) {
+	t.Setenv("DS2API_CONFIG_JSON", `{"keys":["k1"],"accounts":[],"compat":{"preset":"shallowseek_compat"}}`)
+	store := LoadStore()
+	if got := store.CompatReasoningExposure(); got != CompatReasoningRequestOptIn {
+		t.Fatalf("expected effective reasoning exposure=%q, got %q", CompatReasoningRequestOptIn, got)
+	}
+
+	snap := store.Snapshot()
+	data, err := snap.MarshalJSON()
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+	rawCompat, ok := out["compat"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected compat in marshaled output, got %#v", out)
+	}
+	if got, _ := rawCompat["preset"].(string); got != "shallowseek_compat" {
+		t.Fatalf("expected compat preset shallowseek_compat, got %#v", rawCompat["preset"])
+	}
+}
+
 func TestStoreIsEnvBacked(t *testing.T) {
 	t.Setenv("DS2API_CONFIG_JSON", `{"keys":["k1"],"accounts":[]}`)
 	store := LoadStore()

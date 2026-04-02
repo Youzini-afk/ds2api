@@ -19,6 +19,8 @@ export default function ConfigPanel({
     setModel,
     streamingMode,
     setStreamingMode,
+    includeReasoning,
+    setIncludeReasoning,
     selectedAccount,
     setSelectedAccount,
     accounts,
@@ -38,6 +40,7 @@ export default function ConfigPanel({
         ToggleLeft,
         ToggleRight,
     }
+    const reasonerModel = String(model || '').includes('reasoner')
 
     return (
         <div className={clsx(
@@ -123,6 +126,30 @@ export default function ConfigPanel({
                             {streamingMode ? <ToggleRight className="w-5 h-5 text-primary" /> : <ToggleLeft className="w-5 h-5 text-muted-foreground" />}
                         </button>
                     </div>
+
+                    {reasonerModel && (
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider ml-0.5">{t('apiTester.includeReasoning')}</label>
+                            <button
+                                onClick={() => setIncludeReasoning(!includeReasoning)}
+                                className={clsx(
+                                    "w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all duration-200",
+                                    includeReasoning
+                                        ? "bg-primary/10 border-primary/50 text-foreground"
+                                        : "bg-background border-border text-muted-foreground hover:bg-muted/50"
+                                )}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <div className={clsx("p-1.5 rounded-md", includeReasoning ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
+                                        <Zap className="w-4 h-4" />
+                                    </div>
+                                    <span className="text-sm font-medium">{t('apiTester.includeReasoning')}</span>
+                                </div>
+                                {includeReasoning ? <ToggleRight className="w-5 h-5 text-primary" /> : <ToggleLeft className="w-5 h-5 text-muted-foreground" />}
+                            </button>
+                            <p className="text-[11px] text-muted-foreground">{t('apiTester.includeReasoningHint')}</p>
+                        </div>
+                    )}
 
                     <div className="space-y-2">
                         <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider ml-0.5">{t('apiTester.accountSelector')}</label>

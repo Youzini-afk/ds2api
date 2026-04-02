@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"strings"
 	"testing"
 
 	"ds2api/internal/config"
@@ -221,5 +222,29 @@ func TestNormalizeOpenAIChatRequestExposeReasoningRequestOptIn(t *testing.T) {
 	}
 	if !n2.ExposeReasoning {
 		t.Fatalf("expected expose_reasoning=true when include_reasoning=true in request_opt_in mode")
+	}
+}
+
+func TestNormalizeOpenAIChatRequestShallowseekPresetUsesShallowseekPromptStyle(t *testing.T) {
+	t.Setenv("DS2API_CONFIG_JSON", `{"compat":{"preset":"shallowseek_compat"}}`)
+	store := config.LoadStore()
+	req := map[string]any{
+		"model": "deepseek-reasoner",
+		"messages": []any{
+			map[string]any{"role": "system", "content": "你是助手"},
+			map[string]any{"role": "user", "content": "你好"},
+			map[string]any{"role": "assistant", "content": "你好呀"},
+			map[string]any{"role": "user", "content": "继续"},
+		},
+	}
+	n, err := normalizeOpenAIChatRequest(store, req, "")
+	if err != nil {
+		t.Fatalf("normalize failed: %v", err)
+	}
+	if !strings.HasPrefix(n.FinalPrompt, "<system_instructions>你是助手</system_instructions>\n你好") {
+		t.Fatalf("expected shallowseek-style prompt prefix, got %q", n.FinalPrompt)
+	}
+	if !strings.Contains(n.FinalPrompt, "<｜Assistant｜><｜end▁of▁thinking｜>你好呀<｜end▁of▁sentence｜><｜User｜>继续") {
+		t.Fatalf("expected shallowseek-style assistant/user boundary, got %q", n.FinalPrompt)
 	}
 }

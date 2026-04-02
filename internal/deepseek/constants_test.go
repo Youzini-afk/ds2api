@@ -19,8 +19,8 @@ func TestBaseHeadersForProfileWeb(t *testing.T) {
 	if web["x-client-platform"] != "web" {
 		t.Fatalf("expected web profile x-client-platform=web, got %q", web["x-client-platform"])
 	}
-	if web["Origin"] == "" || web["Referer"] == "" {
-		t.Fatalf("expected web profile Origin/Referer, got %#v", web)
+	if web["x-app-version"] == "" || web["x-client-timezone-offset"] == "" {
+		t.Fatalf("expected web profile shallowseek-style headers, got %#v", web)
 	}
 }
 

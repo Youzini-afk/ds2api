@@ -11,6 +11,7 @@ var markdownImagePattern = regexp.MustCompile(`!\[(.*?)\]\((.*?)\)`)
 
 type PrepareOptions struct {
 	ReasonerAssistantBoundary bool
+	ShallowseekCompat         bool
 }
 
 func MessagesPrepare(messages []map[string]any) string {
@@ -32,9 +33,21 @@ func MessagesPrepareWithOptions(messages []map[string]any, opts PrepareOptions) 
 		return ""
 	}
 	merged := make([]block, 0, len(processed))
+	joiner := "\n\n"
+	if opts.ShallowseekCompat {
+		joiner = "\n"
+	}
 	for _, msg := range processed {
+		if opts.ShallowseekCompat && msg.Role == "system" {
+			msg.Role = "user"
+			if trimmed := strings.TrimSpace(msg.Text); trimmed != "" {
+				msg.Text = "<system_instructions>" + trimmed + "</system_instructions>"
+			} else {
+				msg.Text = ""
+			}
+		}
 		if len(merged) > 0 && merged[len(merged)-1].Role == msg.Role {
-			merged[len(merged)-1].Text += "\n\n" + msg.Text
+			merged[len(merged)-1].Text += joiner + msg.Text
 			continue
 		}
 		merged = append(merged, msg)
@@ -55,11 +68,29 @@ func MessagesPrepareWithOptions(messages []map[string]any, opts PrepareOptions) 
 				parts = append(parts, m.Text)
 			}
 		case "system":
+			if opts.ShallowseekCompat {
+				if strings.TrimSpace(m.Text) != "" {
+					if i > 0 {
+						parts = append(parts, "<｜User｜>"+m.Text)
+					} else {
+						parts = append(parts, m.Text)
+					}
+				}
+				continue
+			}
 			// Clear system boundary improves R1 and V3 context understanding significantly
 			if strings.TrimSpace(m.Text) != "" {
 				parts = append(parts, "<system_instructions>\n"+strings.TrimSpace(m.Text)+"\n</system_instructions>\n\n")
 			}
 		case "user":
+			if opts.ShallowseekCompat {
+				if i > 0 {
+					parts = append(parts, "<｜User｜>"+m.Text)
+				} else {
+					parts = append(parts, m.Text)
+				}
+				continue
+			}
 			// Always prepend <｜User｜> to user messages. DeepSeek R1 reasoning triggers best
 			// and aligns context perfectly when the user turn is explicitly marked.
 			parts = append(parts, "<｜User｜>"+m.Text)

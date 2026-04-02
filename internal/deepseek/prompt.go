@@ -12,10 +12,12 @@ func MessagesPrepare(messages []map[string]any) string {
 }
 
 func MessagesPrepareWithCompat(messages []map[string]any, resolvedModel, reasonerPromptMode string) string {
+	useShallowseekCompat := strings.EqualFold(strings.TrimSpace(reasonerPromptMode), config.CompatReasonerPromptEndThink)
 	useReasonerBoundary :=
 		config.IsReasonerModel(strings.TrimSpace(resolvedModel)) &&
-			strings.EqualFold(strings.TrimSpace(reasonerPromptMode), config.CompatReasonerPromptEndThink)
+			useShallowseekCompat
 	return prompt.MessagesPrepareWithOptions(messages, prompt.PrepareOptions{
 		ReasonerAssistantBoundary: useReasonerBoundary,
+		ShallowseekCompat:         useShallowseekCompat,
 	})
 }

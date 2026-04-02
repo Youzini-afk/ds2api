@@ -27,3 +27,19 @@ func TestMessagesPrepareWithCompatKeepsDefaultForNonReasoner(t *testing.T) {
 		t.Fatalf("did not expect end_of_thinking boundary for non-reasoner model, got %q", got)
 	}
 }
+
+func TestMessagesPrepareWithCompatUsesShallowseekStyleWhenEnabled(t *testing.T) {
+	messages := []map[string]any{
+		{"role": "system", "content": "你是助手"},
+		{"role": "user", "content": "你好"},
+		{"role": "assistant", "content": "你好呀"},
+		{"role": "user", "content": "继续"},
+	}
+	got := MessagesPrepareWithCompat(messages, "deepseek-reasoner", config.CompatReasonerPromptEndThink)
+	if !strings.HasPrefix(got, "<system_instructions>你是助手</system_instructions>\n你好") {
+		t.Fatalf("expected shallowseek-style merged system/user prefix, got %q", got)
+	}
+	if !strings.Contains(got, "<｜User｜>继续") {
+		t.Fatalf("expected subsequent user turns to keep user boundary, got %q", got)
+	}
+}

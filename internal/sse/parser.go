@@ -3,6 +3,7 @@ package sse
 import (
 	"bytes"
 	"encoding/json"
+	"math"
 	"strings"
 
 	"ds2api/internal/deepseek"
@@ -30,6 +31,9 @@ func ParseDeepSeekSSELine(raw []byte) (map[string]any, bool, bool) {
 }
 
 func shouldSkipPath(path string) bool {
+	if isFragmentStatusPath(path) {
+		return true
+	}
 	if _, ok := deepseek.SkipExactPathSet[path]; ok {
 		return true
 	}
@@ -39,6 +43,31 @@ func shouldSkipPath(path string) bool {
 		}
 	}
 	return false
+}
+
+func isFragmentStatusPath(path string) bool {
+	if path == "" || path == "response/status" {
+		return false
+	}
+	if !strings.HasPrefix(path, "response/fragments/") || !strings.HasSuffix(path, "/status") {
+		return false
+	}
+	mid := strings.TrimSuffix(strings.TrimPrefix(path, "response/fragments/"), "/status")
+	if mid == "" {
+		return false
+	}
+	if strings.HasPrefix(mid, "-") {
+		mid = mid[1:]
+	}
+	if mid == "" {
+		return false
+	}
+	for _, r := range mid {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func ParseSSEChunkForContent(chunk map[string]any, thinkingEnabled bool, currentFragmentType string) ([]ContentPart, bool, string) {
@@ -286,4 +315,91 @@ func extractContentRecursive(items []any, defaultType string) ([]ContentPart, bo
 
 func IsCitation(text string) bool {
 	return bytes.HasPrefix([]byte(strings.TrimSpace(text)), []byte("[citation:"))
+}
+
+func hasContentFilterStatus(chunk map[string]any) bool {
+	if code, _ := chunk["code"].(string); strings.EqualFold(strings.TrimSpace(code), "content_filter") {
+		return true
+	}
+	return hasContentFilterStatusValue(chunk)
+}
+
+func hasContentFilterStatusValue(v any) bool {
+	switch x := v.(type) {
+	case []any:
+		for _, item := range x {
+			if hasContentFilterStatusValue(item) {
+				return true
+			}
+		}
+	case map[string]any:
+		if p, _ := x["p"].(string); strings.Contains(strings.ToLower(p), "status") {
+			if s, _ := x["v"].(string); strings.EqualFold(strings.TrimSpace(s), "content_filter") {
+				return true
+			}
+		}
+		if code, _ := x["code"].(string); strings.EqualFold(strings.TrimSpace(code), "content_filter") {
+			return true
+		}
+		for _, vv := range x {
+			if hasContentFilterStatusValue(vv) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func extractAccumulatedTokenUsage(chunk map[string]any) int {
+	return findAccumulatedTokenUsage(chunk)
+}
+
+func findAccumulatedTokenUsage(v any) int {
+	switch x := v.(type) {
+	case map[string]any:
+		if p, _ := x["p"].(string); strings.Contains(strings.ToLower(p), "accumulated_token_usage") {
+			if n, ok := toInt(x["v"]); ok && n > 0 {
+				return n
+			}
+		}
+		if n, ok := toInt(x["accumulated_token_usage"]); ok && n > 0 {
+			return n
+		}
+		for _, vv := range x {
+			if n := findAccumulatedTokenUsage(vv); n > 0 {
+				return n
+			}
+		}
+	case []any:
+		for _, item := range x {
+			if n := findAccumulatedTokenUsage(item); n > 0 {
+				return n
+			}
+		}
+	}
+	return 0
+}
+
+func toInt(v any) (int, bool) {
+	switch x := v.(type) {
+	case int:
+		return x, true
+	case int32:
+		return int(x), true
+	case int64:
+		return int(x), true
+	case float64:
+		if math.IsNaN(x) || math.IsInf(x, 0) {
+			return 0, false
+		}
+		return int(x), true
+	case json.Number:
+		i, err := x.Int64()
+		if err != nil {
+			return 0, false
+		}
+		return int(i), true
+	default:
+		return 0, false
+	}
 }

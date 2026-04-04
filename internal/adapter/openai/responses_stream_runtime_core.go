@@ -50,6 +50,7 @@ type responsesStreamRuntime struct {
 	messagePartAdded  bool
 	sequence          int
 	failed            bool
+	outputTokens      int
 
 	persistResponse func(obj map[string]any)
 }
@@ -147,6 +148,14 @@ func (s *responsesStreamRuntime) finalize() {
 	s.closeIncompleteFunctionItems()
 
 	obj := s.buildCompletedResponseObject(finalThinking, finalText, detected)
+	if s.outputTokens > 0 {
+		if usage, ok := obj["usage"].(map[string]any); ok {
+			usage["output_tokens"] = s.outputTokens
+			if input, ok := usage["input_tokens"].(int); ok {
+				usage["total_tokens"] = input + s.outputTokens
+			}
+		}
+	}
 	if s.persistResponse != nil {
 		s.persistResponse(obj)
 	}
@@ -174,6 +183,9 @@ func (s *responsesStreamRuntime) logToolPolicyRejections(textParsed util.ToolCal
 func (s *responsesStreamRuntime) onParsed(parsed sse.LineResult) streamengine.ParsedDecision {
 	if !parsed.Parsed {
 		return streamengine.ParsedDecision{}
+	}
+	if parsed.OutputTokens > 0 {
+		s.outputTokens = parsed.OutputTokens
 	}
 	if parsed.ContentFilter || parsed.ErrorMessage != "" || parsed.Stop {
 		return streamengine.ParsedDecision{Stop: true}

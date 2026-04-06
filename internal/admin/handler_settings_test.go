@@ -124,15 +124,38 @@ func TestUpdateSettingsValidationRejectsTokenRefreshInterval(t *testing.T) {
 	}
 }
 
+func TestUpdateSettingsAllowsEmptyEmbeddingsProvider(t *testing.T) {
+	h := newAdminTestHandler(t, `{"keys":["k1"]}`)
+	payload := map[string]any{
+		"responses": map[string]any{
+			"store_ttl_seconds": 600,
+		},
+		"embeddings": map[string]any{
+			"provider": "",
+		},
+	}
+	b, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPut, "/admin/settings", bytes.NewReader(b))
+	rec := httptest.NewRecorder()
+	h.updateSettings(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if got := h.Store.Snapshot().Responses.StoreTTLSeconds; got != 600 {
+		t.Fatalf("store_ttl_seconds=%d want=600", got)
+	}
+}
+
 func TestUpdateSettingsCompatPresetAndOverrides(t *testing.T) {
 	h := newAdminTestHandler(t, `{"keys":["k1"]}`)
 	payload := map[string]any{
 		"compat": map[string]any{
-			"preset":                         "shallowseek_compat",
-			"reasoner_prompt_mode_override":  "default",
-			"reasoning_exposure_override":    "request_opt_in",
-			"upstream_profile_override":      "web",
-			"wide_input_strict_output":       false,
+			"preset":                        "shallowseek_compat",
+			"reasoner_prompt_mode_override": "default",
+			"reasoning_exposure_override":   "request_opt_in",
+			"upstream_profile_override":     "web",
+			"wide_input_strict_output":      false,
+			"strip_reference_markers":       false,
 		},
 	}
 	b, _ := json.Marshal(payload)
@@ -148,6 +171,9 @@ func TestUpdateSettingsCompatPresetAndOverrides(t *testing.T) {
 	}
 	if snap.Compat.WideInputStrictOutput == nil || *snap.Compat.WideInputStrictOutput {
 		t.Fatalf("expected compat.wide_input_strict_output=false, got %#v", snap.Compat.WideInputStrictOutput)
+	}
+	if snap.Compat.StripReferenceMarkers == nil || *snap.Compat.StripReferenceMarkers {
+		t.Fatalf("expected compat.strip_reference_markers=false, got %#v", snap.Compat.StripReferenceMarkers)
 	}
 	if snap.Compat.ReasonerPromptModeOverride != "default" {
 		t.Fatalf("unexpected reasoner_prompt_mode_override=%q", snap.Compat.ReasonerPromptModeOverride)
@@ -220,6 +246,31 @@ func TestUpdateSettingsWithoutRuntimeSkipsMergedRuntimeValidation(t *testing.T) 
 	}
 	if got := h.Store.Snapshot().Responses.StoreTTLSeconds; got != 600 {
 		t.Fatalf("store_ttl_seconds=%d want=600", got)
+	}
+}
+
+func TestUpdateSettingsAutoDeleteMode(t *testing.T) {
+	h := newAdminTestHandler(t, `{"keys":["k1"],"auto_delete":{"sessions":true}}`)
+
+	payload := map[string]any{
+		"auto_delete": map[string]any{
+			"mode": "single",
+		},
+	}
+	b, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPut, "/admin/settings", bytes.NewReader(b))
+	rec := httptest.NewRecorder()
+	h.updateSettings(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	snap := h.Store.Snapshot()
+	if got := snap.AutoDelete.Mode; got != "single" {
+		t.Fatalf("auto_delete.mode=%q want=single", got)
+	}
+	if got := h.Store.AutoDeleteMode(); got != "single" {
+		t.Fatalf("AutoDeleteMode()=%q want=single", got)
 	}
 }
 

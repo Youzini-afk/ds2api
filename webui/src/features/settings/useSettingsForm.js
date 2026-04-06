@@ -13,9 +13,8 @@ const MAX_AUTO_FETCH_FAILURES = 3
 const DEFAULT_FORM = {
     admin: { jwt_expire_hours: 24 },
     runtime: { account_max_inflight: 2, account_max_queue: 10, global_max_inflight: 10, token_refresh_interval_hours: 6 },
-    responses: { store_ttl_seconds: 900 },
-    embeddings: { provider: '' },
     compat: {
+        strip_reference_markers: true,
         wide_input_strict_output: true,
         preset: 'default',
         reasoner_prompt_mode_override: '',
@@ -25,7 +24,9 @@ const DEFAULT_FORM = {
         effective_reasoning_exposure: 'always',
         effective_upstream_profile: 'android',
     },
-    auto_delete: { sessions: false },
+    responses: { store_ttl_seconds: 900 },
+    embeddings: { provider: '' },
+    auto_delete: { mode: 'none' },
     claude_mapping_text: '{\n  "fast": "deepseek-chat",\n  "slow": "deepseek-reasoner"\n}',
     model_aliases_text: '{}',
 }
@@ -47,6 +48,17 @@ function parseJSONMap(raw, fieldName, t) {
     return parsed
 }
 
+function normalizeAutoDeleteMode(raw) {
+    const mode = String(raw?.mode || '').trim().toLowerCase()
+    if (mode === 'none' || mode === 'single' || mode === 'all') {
+        return mode
+    }
+    if (Boolean(raw?.sessions)) {
+        return 'all'
+    }
+    return 'none'
+}
+
 function fromServerForm(data) {
     const compatRaw = data.compat || {}
     return {
@@ -57,13 +69,8 @@ function fromServerForm(data) {
             global_max_inflight: Number(data.runtime?.global_max_inflight || 10),
             token_refresh_interval_hours: Number(data.runtime?.token_refresh_interval_hours || 6),
         },
-        responses: {
-            store_ttl_seconds: Number(data.responses?.store_ttl_seconds || 900),
-        },
-        embeddings: {
-            provider: data.embeddings?.provider || '',
-        },
         compat: {
+            strip_reference_markers: compatRaw.strip_reference_markers ?? true,
             wide_input_strict_output: compatRaw.wide_input_strict_output !== false,
             preset: String(compatRaw.preset || 'default'),
             reasoner_prompt_mode_override: String(compatRaw.reasoner_prompt_mode_override || ''),
@@ -73,8 +80,14 @@ function fromServerForm(data) {
             effective_reasoning_exposure: String(data.effective_reasoning_exposure || 'always'),
             effective_upstream_profile: String(data.effective_upstream_profile || 'android'),
         },
+        responses: {
+            store_ttl_seconds: Number(data.responses?.store_ttl_seconds || 900),
+        },
+        embeddings: {
+            provider: data.embeddings?.provider || '',
+        },
         auto_delete: {
-            sessions: Boolean(data.auto_delete?.sessions || false),
+            mode: normalizeAutoDeleteMode(data.auto_delete),
         },
         claude_mapping_text: JSON.stringify(data.claude_mapping || {}, null, 2),
         model_aliases_text: JSON.stringify(data.model_aliases || {}, null, 2),
@@ -90,16 +103,17 @@ function toServerPayload(form) {
             global_max_inflight: Number(form.runtime.global_max_inflight),
             token_refresh_interval_hours: Number(form.runtime.token_refresh_interval_hours),
         },
-        responses: { store_ttl_seconds: Number(form.responses.store_ttl_seconds) },
-        embeddings: { provider: String(form.embeddings.provider || '').trim() },
         compat: {
+            strip_reference_markers: Boolean(form.compat?.strip_reference_markers ?? true),
             wide_input_strict_output: Boolean(form.compat?.wide_input_strict_output),
             preset: String(form.compat?.preset || '').trim(),
             reasoner_prompt_mode_override: String(form.compat?.reasoner_prompt_mode_override || '').trim(),
             reasoning_exposure_override: String(form.compat?.reasoning_exposure_override || '').trim(),
             upstream_profile_override: String(form.compat?.upstream_profile_override || '').trim(),
         },
-        auto_delete: { sessions: Boolean(form.auto_delete?.sessions) },
+        responses: { store_ttl_seconds: Number(form.responses.store_ttl_seconds) },
+        embeddings: { provider: String(form.embeddings.provider || '').trim() },
+        auto_delete: { mode: normalizeAutoDeleteMode(form.auto_delete) },
     }
 }
 

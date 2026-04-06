@@ -8,7 +8,7 @@ import (
 	openaifmt "ds2api/internal/format/openai"
 	"ds2api/internal/sse"
 	streamengine "ds2api/internal/stream"
-	"ds2api/internal/util"
+	"ds2api/internal/toolcall"
 )
 
 type chatStreamRuntime struct {
@@ -22,9 +22,10 @@ type chatStreamRuntime struct {
 	finalPrompt  string
 	toolNames    []string
 
-	thinkingEnabled bool
-	exposeReasoning bool
-	searchEnabled   bool
+	thinkingEnabled       bool
+	exposeReasoning       bool
+	searchEnabled         bool
+	stripReferenceMarkers bool
 
 	firstChunkSent       bool
 	bufferToolContent    bool
@@ -51,26 +52,28 @@ func newChatStreamRuntime(
 	thinkingEnabled bool,
 	exposeReasoning bool,
 	searchEnabled bool,
+	stripReferenceMarkers bool,
 	toolNames []string,
 	bufferToolContent bool,
 	emitEarlyToolDeltas bool,
 ) *chatStreamRuntime {
 	return &chatStreamRuntime{
-		w:                   w,
-		rc:                  rc,
-		canFlush:            canFlush,
-		completionID:        completionID,
-		created:             created,
-		model:               model,
-		finalPrompt:         finalPrompt,
-		toolNames:           toolNames,
-		thinkingEnabled:     thinkingEnabled,
-		exposeReasoning:     exposeReasoning,
-		searchEnabled:       searchEnabled,
-		bufferToolContent:   bufferToolContent,
-		emitEarlyToolDeltas: emitEarlyToolDeltas,
-		streamToolCallIDs:   map[int]string{},
-		streamToolNames:     map[int]string{},
+		w:                     w,
+		rc:                    rc,
+		canFlush:              canFlush,
+		completionID:          completionID,
+		created:               created,
+		model:                 model,
+		finalPrompt:           finalPrompt,
+		toolNames:             toolNames,
+		thinkingEnabled:       thinkingEnabled,
+		exposeReasoning:       exposeReasoning,
+		searchEnabled:         searchEnabled,
+		stripReferenceMarkers: stripReferenceMarkers,
+		bufferToolContent:     bufferToolContent,
+		emitEarlyToolDeltas:   emitEarlyToolDeltas,
+		streamToolCallIDs:     map[int]string{},
+		streamToolNames:       map[int]string{},
 	}
 }
 
@@ -101,8 +104,8 @@ func (s *chatStreamRuntime) sendDone() {
 
 func (s *chatStreamRuntime) finalize(finishReason string) {
 	finalThinking := s.thinking.String()
-	finalText := sanitizeLeakedOutput(s.text.String())
-	detected := util.ParseStandaloneToolCallsDetailed(finalText, s.toolNames)
+	finalText := cleanVisibleOutput(s.text.String(), s.stripReferenceMarkers)
+	detected := toolcall.ParseStandaloneToolCallsDetailed(finalText, s.toolNames)
 	if len(detected.Calls) > 0 && !s.toolCallsDoneEmitted {
 		finishReason = "tool_calls"
 		delta := map[string]any{
@@ -145,7 +148,7 @@ func (s *chatStreamRuntime) finalize(finishReason string) {
 			if evt.Content == "" {
 				continue
 			}
-			cleaned := sanitizeLeakedOutput(evt.Content)
+			cleaned := cleanVisibleOutput(evt.Content, s.stripReferenceMarkers)
 			if cleaned == "" {
 				continue
 			}
@@ -206,87 +209,106 @@ func (s *chatStreamRuntime) onParsed(parsed sse.LineResult) streamengine.ParsedD
 	newChoices := make([]map[string]any, 0, len(parsed.Parts))
 	contentSeen := false
 	for _, p := range parsed.Parts {
-		if s.searchEnabled && sse.IsCitation(p.Text) {
+		cleanedText := cleanVisibleOutput(p.Text, s.stripReferenceMarkers)
+		if s.searchEnabled && sse.IsCitation(cleanedText) {
 			continue
 		}
-		if p.Text == "" {
+		if cleanedText == "" {
 			continue
 		}
 		contentSeen = true
-		delta := map[string]any{}
-		if !s.firstChunkSent {
-			delta["role"] = "assistant"
-			s.firstChunkSent = true
-		}
+
 		if p.Type == "thinking" {
-			if s.thinkingEnabled {
-				s.thinking.WriteString(p.Text)
-				if s.exposeReasoning {
-					delta["reasoning_content"] = p.Text
-				}
+			if !s.thinkingEnabled {
+				continue
 			}
-		} else {
-			s.text.WriteString(p.Text)
-			if !s.bufferToolContent {
-				delta["content"] = p.Text
-			} else {
-				events := processToolSieveChunk(&s.toolSieve, p.Text, s.toolNames)
-				for _, evt := range events {
-					if len(evt.ToolCallDeltas) > 0 {
-						if !s.emitEarlyToolDeltas {
-							continue
-						}
-						filtered := filterIncrementalToolCallDeltasByAllowed(evt.ToolCallDeltas, s.toolNames, s.streamToolNames)
-						if len(filtered) == 0 {
-							continue
-						}
-						formatted := formatIncrementalStreamToolCallDeltas(filtered, s.streamToolCallIDs)
-						if len(formatted) == 0 {
-							continue
-						}
-						tcDelta := map[string]any{
-							"tool_calls": formatted,
-						}
-						s.toolCallsEmitted = true
-						if !s.firstChunkSent {
-							tcDelta["role"] = "assistant"
-							s.firstChunkSent = true
-						}
-						newChoices = append(newChoices, openaifmt.BuildChatStreamDeltaChoice(0, tcDelta))
-						continue
-					}
-					if len(evt.ToolCalls) > 0 {
-						s.toolCallsEmitted = true
-						s.toolCallsDoneEmitted = true
-						tcDelta := map[string]any{
-							"tool_calls": formatFinalStreamToolCallsWithStableIDs(evt.ToolCalls, s.streamToolCallIDs),
-						}
-						if !s.firstChunkSent {
-							tcDelta["role"] = "assistant"
-							s.firstChunkSent = true
-						}
-						newChoices = append(newChoices, openaifmt.BuildChatStreamDeltaChoice(0, tcDelta))
-						continue
-					}
-					if evt.Content != "" {
-						cleaned := sanitizeLeakedOutput(evt.Content)
-						if cleaned == "" {
-							continue
-						}
-						contentDelta := map[string]any{
-							"content": cleaned,
-						}
-						if !s.firstChunkSent {
-							contentDelta["role"] = "assistant"
-							s.firstChunkSent = true
-						}
-						newChoices = append(newChoices, openaifmt.BuildChatStreamDeltaChoice(0, contentDelta))
-					}
-				}
+			trimmed := sse.TrimContinuationOverlap(s.thinking.String(), cleanedText)
+			if trimmed == "" {
+				continue
 			}
+			s.thinking.WriteString(trimmed)
+			if s.exposeReasoning {
+				delta := map[string]any{
+					"reasoning_content": trimmed,
+				}
+				if !s.firstChunkSent {
+					delta["role"] = "assistant"
+					s.firstChunkSent = true
+				}
+				newChoices = append(newChoices, openaifmt.BuildChatStreamDeltaChoice(0, delta))
+			}
+			continue
 		}
-		if len(delta) > 0 {
+
+		trimmed := sse.TrimContinuationOverlap(s.text.String(), cleanedText)
+		if trimmed == "" {
+			continue
+		}
+		s.text.WriteString(trimmed)
+		if !s.bufferToolContent {
+			delta := map[string]any{
+				"content": trimmed,
+			}
+			if !s.firstChunkSent {
+				delta["role"] = "assistant"
+				s.firstChunkSent = true
+			}
 			newChoices = append(newChoices, openaifmt.BuildChatStreamDeltaChoice(0, delta))
+			continue
+		}
+
+		events := processToolSieveChunk(&s.toolSieve, trimmed, s.toolNames)
+		for _, evt := range events {
+			if len(evt.ToolCallDeltas) > 0 {
+				if !s.emitEarlyToolDeltas {
+					continue
+				}
+				filtered := filterIncrementalToolCallDeltasByAllowed(evt.ToolCallDeltas, s.toolNames, s.streamToolNames)
+				if len(filtered) == 0 {
+					continue
+				}
+				formatted := formatIncrementalStreamToolCallDeltas(filtered, s.streamToolCallIDs)
+				if len(formatted) == 0 {
+					continue
+				}
+				tcDelta := map[string]any{
+					"tool_calls": formatted,
+				}
+				s.toolCallsEmitted = true
+				if !s.firstChunkSent {
+					tcDelta["role"] = "assistant"
+					s.firstChunkSent = true
+				}
+				newChoices = append(newChoices, openaifmt.BuildChatStreamDeltaChoice(0, tcDelta))
+				continue
+			}
+			if len(evt.ToolCalls) > 0 {
+				s.toolCallsEmitted = true
+				s.toolCallsDoneEmitted = true
+				tcDelta := map[string]any{
+					"tool_calls": formatFinalStreamToolCallsWithStableIDs(evt.ToolCalls, s.streamToolCallIDs),
+				}
+				if !s.firstChunkSent {
+					tcDelta["role"] = "assistant"
+					s.firstChunkSent = true
+				}
+				newChoices = append(newChoices, openaifmt.BuildChatStreamDeltaChoice(0, tcDelta))
+				continue
+			}
+			if evt.Content != "" {
+				cleaned := cleanVisibleOutput(evt.Content, s.stripReferenceMarkers)
+				if cleaned == "" {
+					continue
+				}
+				contentDelta := map[string]any{
+					"content": cleaned,
+				}
+				if !s.firstChunkSent {
+					contentDelta["role"] = "assistant"
+					s.firstChunkSent = true
+				}
+				newChoices = append(newChoices, openaifmt.BuildChatStreamDeltaChoice(0, contentDelta))
+			}
 		}
 	}
 

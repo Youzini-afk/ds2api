@@ -31,6 +31,8 @@ func normalizeOptionalToken(v any) string {
 type settingsCompatPatch struct {
 	HasWideInputStrictOutput      bool
 	WideInputStrictOutput         bool
+	HasStripReferenceMarkers      bool
+	StripReferenceMarkers         bool
 	HasPreset                     bool
 	Preset                        string
 	HasReasonerPromptModeOverride bool
@@ -57,8 +59,8 @@ func parseSettingsUpdateRequest(req map[string]any) (*config.AdminConfig, *confi
 		cfg := &config.AdminConfig{}
 		if v, exists := raw["jwt_expire_hours"]; exists {
 			n := intFrom(v)
-			if n < 1 || n > 720 {
-				return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("admin.jwt_expire_hours must be between 1 and 720")
+			if err := config.ValidateIntRange("admin.jwt_expire_hours", n, 1, 720, true); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
 			}
 			cfg.JWTExpireHours = n
 		}
@@ -69,29 +71,29 @@ func parseSettingsUpdateRequest(req map[string]any) (*config.AdminConfig, *confi
 		cfg := &config.RuntimeConfig{}
 		if v, exists := raw["account_max_inflight"]; exists {
 			n := intFrom(v)
-			if n < 1 || n > 256 {
-				return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("runtime.account_max_inflight must be between 1 and 256")
+			if err := config.ValidateIntRange("runtime.account_max_inflight", n, 1, 256, true); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
 			}
 			cfg.AccountMaxInflight = n
 		}
 		if v, exists := raw["account_max_queue"]; exists {
 			n := intFrom(v)
-			if n < 1 || n > 200000 {
-				return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("runtime.account_max_queue must be between 1 and 200000")
+			if err := config.ValidateIntRange("runtime.account_max_queue", n, 1, 200000, true); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
 			}
 			cfg.AccountMaxQueue = n
 		}
 		if v, exists := raw["global_max_inflight"]; exists {
 			n := intFrom(v)
-			if n < 1 || n > 200000 {
-				return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("runtime.global_max_inflight must be between 1 and 200000")
+			if err := config.ValidateIntRange("runtime.global_max_inflight", n, 1, 200000, true); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
 			}
 			cfg.GlobalMaxInflight = n
 		}
 		if v, exists := raw["token_refresh_interval_hours"]; exists {
 			n := intFrom(v)
-			if n < 1 || n > 720 {
-				return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("runtime.token_refresh_interval_hours must be between 1 and 720")
+			if err := config.ValidateIntRange("runtime.token_refresh_interval_hours", n, 1, 720, true); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
 			}
 			cfg.TokenRefreshIntervalHours = n
 		}
@@ -101,32 +103,15 @@ func parseSettingsUpdateRequest(req map[string]any) (*config.AdminConfig, *confi
 		runtimeCfg = cfg
 	}
 
-	if raw, ok := req["responses"].(map[string]any); ok {
-		cfg := &config.ResponsesConfig{}
-		if v, exists := raw["store_ttl_seconds"]; exists {
-			n := intFrom(v)
-			if n < 30 || n > 86400 {
-				return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("responses.store_ttl_seconds must be between 30 and 86400")
-			}
-			cfg.StoreTTLSeconds = n
-		}
-		respCfg = cfg
-	}
-
-	if raw, ok := req["embeddings"].(map[string]any); ok {
-		cfg := &config.EmbeddingsConfig{}
-		if v, exists := raw["provider"]; exists {
-			p := strings.TrimSpace(fmt.Sprintf("%v", v))
-			cfg.Provider = p
-		}
-		embCfg = cfg
-	}
-
 	if raw, ok := req["compat"].(map[string]any); ok {
 		cfg := &settingsCompatPatch{}
 		if v, exists := raw["wide_input_strict_output"]; exists {
 			cfg.HasWideInputStrictOutput = true
 			cfg.WideInputStrictOutput = boolFrom(v)
+		}
+		if v, exists := raw["strip_reference_markers"]; exists {
+			cfg.HasStripReferenceMarkers = true
+			cfg.StripReferenceMarkers = boolFrom(v)
 		}
 		if v, exists := raw["preset"]; exists {
 			preset := normalizeOptionalToken(v)
@@ -163,6 +148,30 @@ func parseSettingsUpdateRequest(req map[string]any) (*config.AdminConfig, *confi
 		compatCfg = cfg
 	}
 
+	if raw, ok := req["responses"].(map[string]any); ok {
+		cfg := &config.ResponsesConfig{}
+		if v, exists := raw["store_ttl_seconds"]; exists {
+			n := intFrom(v)
+			if err := config.ValidateIntRange("responses.store_ttl_seconds", n, 30, 86400, true); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
+			}
+			cfg.StoreTTLSeconds = n
+		}
+		respCfg = cfg
+	}
+
+	if raw, ok := req["embeddings"].(map[string]any); ok {
+		cfg := &config.EmbeddingsConfig{}
+		if v, exists := raw["provider"]; exists {
+			p := strings.TrimSpace(fmt.Sprintf("%v", v))
+			if err := config.ValidateTrimmedString("embeddings.provider", p, false); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
+			}
+			cfg.Provider = p
+		}
+		embCfg = cfg
+	}
+
 	if raw, ok := req["claude_mapping"].(map[string]any); ok {
 		claudeMap = map[string]string{}
 		for k, v := range raw {
@@ -189,6 +198,16 @@ func parseSettingsUpdateRequest(req map[string]any) (*config.AdminConfig, *confi
 
 	if raw, ok := req["auto_delete"].(map[string]any); ok {
 		cfg := &config.AutoDeleteConfig{}
+		if v, exists := raw["mode"]; exists {
+			mode := strings.ToLower(strings.TrimSpace(fmt.Sprintf("%v", v)))
+			if err := config.ValidateAutoDeleteMode(mode); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
+			}
+			if mode == "" {
+				mode = "none"
+			}
+			cfg.Mode = mode
+		}
 		if v, exists := raw["sessions"]; exists {
 			cfg.Sessions = boolFrom(v)
 		}

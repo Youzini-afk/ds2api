@@ -1,3 +1,4 @@
+import { ShieldAlert } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 function normalizeToken(value) {
@@ -59,7 +60,7 @@ export default function CompatibilitySection({ t, form, setForm }) {
     const effective = useMemo(() => resolveCompatPreview(compat), [compat])
 
     const updateCompat = (patch) => {
-        setForm(prev => ({
+        setForm((prev) => ({
             ...prev,
             compat: {
                 ...prev.compat,
@@ -70,10 +71,11 @@ export default function CompatibilitySection({ t, form, setForm }) {
 
     return (
         <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-            <div className="space-y-1">
+            <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-muted-foreground" />
                 <h3 className="font-semibold">{t('settings.compatTitle')}</h3>
-                <p className="text-xs text-muted-foreground">{t('settings.compatDesc')}</p>
             </div>
+            <p className="text-sm text-muted-foreground">{t('settings.compatDesc')}</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label className="text-sm space-y-2">
@@ -90,7 +92,7 @@ export default function CompatibilitySection({ t, form, setForm }) {
 
                 <label className="text-sm space-y-2">
                     <span className="text-muted-foreground">{t('settings.compatWideInputStrictOutput')}</span>
-                    <div className="h-[42px] px-3 rounded-lg border border-border bg-background flex items-center justify-between">
+                    <div className="h-[42px] px-3 rounded-lg border border-border bg-background flex items-center justify-between gap-3">
                         <span className="text-xs text-muted-foreground">{t('settings.compatWideInputStrictOutputDesc')}</span>
                         <input
                             type="checkbox"
@@ -100,6 +102,25 @@ export default function CompatibilitySection({ t, form, setForm }) {
                         />
                     </div>
                 </label>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-background px-3 py-3">
+                <label className="text-sm font-medium">{t('settings.stripReferenceMarkers')}</label>
+                <button
+                    type="button"
+                    role="switch"
+                    aria-checked={compat.strip_reference_markers ?? true}
+                    onClick={() => updateCompat({ strip_reference_markers: !(compat.strip_reference_markers ?? true) })}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        compat.strip_reference_markers ?? true ? 'bg-primary' : 'bg-muted'
+                    }`}
+                >
+                    <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            compat.strip_reference_markers ?? true ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                    />
+                </button>
             </div>
 
             <div className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted-foreground space-y-1">
@@ -117,7 +138,7 @@ export default function CompatibilitySection({ t, form, setForm }) {
             <div className="space-y-3">
                 <button
                     type="button"
-                    onClick={() => setAdvancedOpen(prev => !prev)}
+                    onClick={() => setAdvancedOpen((prev) => !prev)}
                     className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted/50"
                 >
                     {advancedOpen ? t('settings.compatHideAdvanced') : t('settings.compatShowAdvanced')}

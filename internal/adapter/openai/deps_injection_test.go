@@ -12,6 +12,7 @@ type mockOpenAIConfig struct {
 	earlyEmit    string
 	responsesTTL int
 	embedProv    string
+	autoDeleteMode string
 }
 
 func (m mockOpenAIConfig) ModelAliases() map[string]string { return m.aliases }
@@ -36,11 +37,18 @@ func (m mockOpenAIConfig) CompatUpstreamProfile() string {
 	}
 	return "android"
 }
+func (m mockOpenAIConfig) CompatStripReferenceMarkers() bool   { return true }
 func (m mockOpenAIConfig) ToolcallMode() string                { return m.toolMode }
 func (m mockOpenAIConfig) ToolcallEarlyEmitConfidence() string { return m.earlyEmit }
 func (m mockOpenAIConfig) ResponsesStoreTTLSeconds() int       { return m.responsesTTL }
 func (m mockOpenAIConfig) EmbeddingsProvider() string          { return m.embedProv }
-func (m mockOpenAIConfig) AutoDeleteSessions() bool            { return false }
+func (m mockOpenAIConfig) AutoDeleteMode() string {
+	if m.autoDeleteMode == "" {
+		return "none"
+	}
+	return m.autoDeleteMode
+}
+func (m mockOpenAIConfig) AutoDeleteSessions() bool { return false }
 
 func TestNormalizeOpenAIChatRequestWithConfigInterface(t *testing.T) {
 	cfg := mockOpenAIConfig{

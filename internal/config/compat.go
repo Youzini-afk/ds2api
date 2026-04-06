@@ -114,6 +114,7 @@ func IsValidCompatUpstreamProfile(raw string) bool {
 
 func compatHasValues(cfg CompatConfig) bool {
 	return cfg.WideInputStrictOutput != nil ||
+		cfg.StripReferenceMarkers != nil ||
 		strings.TrimSpace(cfg.Preset) != "" ||
 		strings.TrimSpace(cfg.ReasonerPromptModeOverride) != "" ||
 		strings.TrimSpace(cfg.ReasoningExposureOverride) != "" ||

@@ -1,13 +1,13 @@
 package openai
 
 import (
+	"ds2api/internal/toolcall"
 	"encoding/json"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
-	"ds2api/internal/util"
 )
 
 func BuildResponsesMessageContent(reasoningText, outputText string) []any {
@@ -30,7 +30,7 @@ func BuildResponsesMessageContent(reasoningText, outputText string) []any {
 func BuildResponseObject(responseID, model, finalPrompt, finalThinking, finalText string, toolNames []string, exposeReasoning bool) map[string]any {
 	// Strict mode: only standalone, structured tool-call payloads are treated
 	// as executable tool calls.
-	detected := util.ParseStandaloneToolCallsDetailed(finalText, toolNames)
+	detected := toolcall.ParseStandaloneToolCallsDetailed(finalText, toolNames)
 	exposedOutputText := finalText
 	exposedThinking := ""
 	if exposeReasoning {
@@ -90,7 +90,7 @@ func BuildResponseObjectFromItems(responseID, model, finalPrompt, finalThinking,
 	}
 }
 
-func toResponsesFunctionCallItems(toolCalls []util.ParsedToolCall) []any {
+func toResponsesFunctionCallItems(toolCalls []toolcall.ParsedToolCall) []any {
 	if len(toolCalls) == 0 {
 		return nil
 	}

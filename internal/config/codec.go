@@ -137,6 +137,7 @@ func (c Config) Clone() Config {
 		Runtime:        c.Runtime,
 		Compat: CompatConfig{
 			WideInputStrictOutput:      cloneBoolPtr(c.Compat.WideInputStrictOutput),
+			StripReferenceMarkers:      cloneBoolPtr(c.Compat.StripReferenceMarkers),
 			Preset:                     c.Compat.Preset,
 			ReasonerPromptModeOverride: c.Compat.ReasonerPromptModeOverride,
 			ReasoningExposureOverride:  c.Compat.ReasoningExposureOverride,

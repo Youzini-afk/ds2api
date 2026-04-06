@@ -25,14 +25,13 @@ This guide covers all deployment methods for the current Go-based codebase.
 | Dependency | Minimum Version | Notes |
 | --- | --- | --- |
 | Go | 1.26+ | Build backend |
-| Node.js | 20+ | Only needed to build WebUI locally |
+| Node.js | `20.19+` or `22.12+` | Only needed to build WebUI locally |
 | npm | Bundled with Node.js | Install WebUI dependencies |
 
 Config source (choose one):
 
 - **File**: `config.json` (recommended for local/Docker)
 - **Environment variable**: `DS2API_CONFIG_JSON` (recommended for Vercel; supports raw JSON or Base64)
-- Compatibility note: `CONFIG_JSON` is the legacy fallback variable; `DS2API_CONFIG_JSON` may also contain raw JSON directly
 
 Unified recommendation (best practice):
 
@@ -66,7 +65,7 @@ cp config.example.json config.json
 go run ./cmd/ds2api
 ```
 
-Default address: `http://0.0.0.0:5001` (override with `PORT`).
+Default local access URL: `http://127.0.0.1:5001`; the server actually binds to `0.0.0.0:5001` (override with `PORT`).
 
 ### 1.2 WebUI Build
 
@@ -117,6 +116,8 @@ cp config.example.json config.json
 
 # Edit .env and set at least:
 #   DS2API_ADMIN_KEY=your-admin-key
+# Optionally set the host port:
+#   DS2API_HOST_PORT=6011
 
 # Start
 docker-compose up -d
@@ -125,7 +126,7 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
-The default `docker-compose.yml` maps host port `6011` to container port `5001`. If you want `5001` exposed directly, adjust the `ports` mapping.
+The default `docker-compose.yml` maps host port `6011` to container port `5001`. If you want `5001` exposed directly, set `DS2API_HOST_PORT=5001` (or adjust the `ports` mapping).
 
 ### 2.2 Update
 
@@ -138,7 +139,7 @@ docker-compose up -d --build
 The `Dockerfile` now provides two image paths:
 
 1. **Default local/dev path (`runtime-from-source`)**: a three-stage build (WebUI build + Go build + runtime).
-2. **Release path (`runtime-from-dist`)**: CI first creates `dist/ds2api_<tag>_linux_<arch>.tar.gz`, then Docker directly reuses the binary and `static/admin` assets from those release archives, without running `npm build`/`go build` again.
+2. **Release path (`runtime-from-dist`)**: the release workflow first creates tag-named release archives, then copies the Linux bundles to `dist/docker-input/linux_amd64.tar.gz` / `linux_arm64.tar.gz`; Docker consumes those prepared inputs directly, without rerunning `npm build`/`go build`.
 
 The release path keeps Docker images aligned with release archives and reduces duplicate build work.
 
@@ -200,10 +201,10 @@ Notes:
 2. **Import** the project on Vercel
 3. **Set environment variables** (minimum required: one variable):
 
-   | Variable | Description |
-   | --- | --- |
-   | `DS2API_ADMIN_KEY` | Admin key (required) |
-   | `DS2API_CONFIG_JSON` | Config content, raw JSON or Base64 (optional, recommended) |
+| Variable | Description |
+| --- | --- |
+| `DS2API_ADMIN_KEY` | Admin key (required) |
+| `DS2API_CONFIG_JSON` | Config content, raw JSON or Base64 (optional, recommended) |
 
 4. **Deploy**
 
@@ -246,11 +247,8 @@ VERCEL_TEAM_ID=team_xxxxxxxxxxxx   # optional for personal accounts
 | Variable | Description | Default |
 | --- | --- | --- |
 | `DS2API_ACCOUNT_MAX_INFLIGHT` | Per-account inflight limit | `2` |
-| `DS2API_ACCOUNT_CONCURRENCY` | Alias (legacy compat) | — |
 | `DS2API_ACCOUNT_MAX_QUEUE` | Waiting queue limit | `recommended_concurrency` |
-| `DS2API_ACCOUNT_QUEUE_SIZE` | Alias (legacy compat) | — |
 | `DS2API_GLOBAL_MAX_INFLIGHT` | Global inflight limit | `recommended_concurrency` |
-| `DS2API_MAX_INFLIGHT` | Alias (legacy compat) | — |
 | `DS2API_ENV_WRITEBACK` | When `DS2API_CONFIG_JSON` is present, auto-write to `DS2API_CONFIG_PATH` and switch to file-backed mode after success (`1/true/yes/on`) | Disabled |
 | `DS2API_VERCEL_INTERNAL_SECRET` | Hybrid streaming internal auth | Falls back to `DS2API_ADMIN_KEY` |
 | `DS2API_VERCEL_STREAM_LEASE_TTL_SECONDS` | Stream lease TTL | `900` |
@@ -316,7 +314,7 @@ Error: Command failed: go build -ldflags -s -w -o .../bootstrap ...
 1. Open Vercel Project Settings → Build and Development Settings
 2. **Clear** custom Go Build Flags / Build Command (recommended)
 3. If ldflags must be used, set `-ldflags="-s -w"` (ensure it's one argument)
-4. Verify `go.mod` uses a supported version (currently `go 1.24`)
+4. Verify `go.mod` uses a supported version (currently `go 1.26.0`)
 5. Redeploy (recommended: clear cache)
 
 #### Internal Package Import Error

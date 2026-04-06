@@ -7,16 +7,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
-
 	"ds2api/internal/auth"
 	"ds2api/internal/config"
 	"ds2api/internal/deepseek"
 	openaifmt "ds2api/internal/format/openai"
 	"ds2api/internal/sse"
 	streamengine "ds2api/internal/stream"
+	"ds2api/internal/toolcall"
 	"ds2api/internal/util"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 )
 
 func (h *Handler) GetResponseByID(w http.ResponseWriter, r *http.Request) {
@@ -113,11 +114,13 @@ func (h *Handler) handleResponsesNonStream(w http.ResponseWriter, resp *http.Res
 		return
 	}
 	result := sse.CollectStream(resp, thinkingEnabled, true)
-	sanitizedText := sanitizeLeakedOutput(result.Text)
-	if writeUpstreamEmptyOutputError(w, result) {
+	stripReferenceMarkers := h.compatStripReferenceMarkers()
+	sanitizedThinking := cleanVisibleOutput(result.Thinking, stripReferenceMarkers)
+	sanitizedText := cleanVisibleOutput(result.Text, stripReferenceMarkers)
+	if writeUpstreamEmptyOutputError(w, sanitizedThinking, sanitizedText, result.ContentFilter) {
 		return
 	}
-	textParsed := util.ParseStandaloneToolCallsDetailed(sanitizedText, toolNames)
+	textParsed := toolcall.ParseStandaloneToolCallsDetailed(sanitizedText, toolNames)
 	logResponsesToolPolicyRejection(traceID, toolChoice, textParsed, "text")
 
 	callCount := len(textParsed.Calls)
@@ -126,7 +129,7 @@ func (h *Handler) handleResponsesNonStream(w http.ResponseWriter, resp *http.Res
 		return
 	}
 
-	responseObj := openaifmt.BuildResponseObject(responseID, model, finalPrompt, result.Thinking, sanitizedText, toolNames, exposeReasoning)
+	responseObj := openaifmt.BuildResponseObject(responseID, model, finalPrompt, sanitizedThinking, sanitizedText, toolNames, exposeReasoning)
 	if result.OutputTokens > 0 {
 		if usage, ok := responseObj["usage"].(map[string]any); ok {
 			usage["output_tokens"] = result.OutputTokens
@@ -159,6 +162,7 @@ func (h *Handler) handleResponsesStream(w http.ResponseWriter, r *http.Request, 
 	}
 	bufferToolContent := len(toolNames) > 0
 	emitEarlyToolDeltas := h.toolcallFeatureMatchEnabled() && h.toolcallEarlyEmitHighConfidence()
+	stripReferenceMarkers := h.compatStripReferenceMarkers()
 
 	streamRuntime := newResponsesStreamRuntime(
 		w,
@@ -170,6 +174,7 @@ func (h *Handler) handleResponsesStream(w http.ResponseWriter, r *http.Request, 
 		thinkingEnabled,
 		exposeReasoning,
 		searchEnabled,
+		stripReferenceMarkers,
 		toolNames,
 		bufferToolContent,
 		emitEarlyToolDeltas,
@@ -197,7 +202,7 @@ func (h *Handler) handleResponsesStream(w http.ResponseWriter, r *http.Request, 
 	})
 }
 
-func logResponsesToolPolicyRejection(traceID string, policy util.ToolChoicePolicy, parsed util.ToolCallParseResult, channel string) {
+func logResponsesToolPolicyRejection(traceID string, policy util.ToolChoicePolicy, parsed toolcall.ToolCallParseResult, channel string) {
 	rejected := filteredRejectedToolNamesForLog(parsed.RejectedToolNames)
 	if !parsed.RejectedByPolicy || len(rejected) == 0 {
 		return

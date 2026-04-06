@@ -23,6 +23,7 @@ type DeepSeekCaller interface {
 type ConfigReader interface {
 	ClaudeMapping() map[string]string
 	CompatReasonerPromptMode() string
+	CompatStripReferenceMarkers() bool
 }
 
 type OpenAIChatRunner interface {

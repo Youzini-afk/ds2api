@@ -8,6 +8,7 @@ type mockClaudeConfig struct {
 
 func (m mockClaudeConfig) ClaudeMapping() map[string]string { return m.m }
 func (m mockClaudeConfig) CompatReasonerPromptMode() string { return "default" }
+func (mockClaudeConfig) CompatStripReferenceMarkers() bool  { return true }
 
 func TestNormalizeClaudeRequestUsesConfigInterfaceMapping(t *testing.T) {
 	req := map[string]any{

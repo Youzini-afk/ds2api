@@ -13,6 +13,16 @@ type PrepareOptions struct {
 	ReasonerAssistantBoundary bool
 }
 
+const (
+	systemMarker          = "<｜System｜>"
+	userMarker            = "<｜User｜>"
+	assistantMarker       = "<｜Assistant｜>"
+	toolMarker            = "<｜Tool｜>"
+	endSentenceMarker     = "<｜end▁of▁sentence｜>"
+	endToolResultsMarker  = "<｜end▁of▁toolresults｜>"
+	endInstructionsMarker = "<｜end▁of▁instructions｜>"
+)
+
 func MessagesPrepare(messages []map[string]any) string {
 	return MessagesPrepareWithOptions(messages, PrepareOptions{})
 }
@@ -40,35 +50,41 @@ func MessagesPrepareWithOptions(messages []map[string]any, opts PrepareOptions) 
 		merged = append(merged, msg)
 	}
 	parts := make([]string, 0, len(merged))
-	for i, m := range merged {
+	for _, m := range merged {
 		switch m.Role {
 		case "assistant":
-			prefix := "<｜Assistant｜>"
 			if opts.ReasonerAssistantBoundary {
-				prefix += "<｜end▁of▁thinking｜>"
+				parts = append(parts, formatRoleBlock(assistantMarker, "<｜end▁of▁thinking｜>\n"+m.Text, endSentenceMarker))
+				continue
 			}
-			parts = append(parts, prefix+m.Text+"<｜end▁of▁sentence｜>")
+			parts = append(parts, formatRoleBlock(assistantMarker, m.Text, endSentenceMarker))
 		case "tool":
-			if i > 0 {
-				parts = append(parts, "<｜Tool｜>"+m.Text)
-			} else {
-				parts = append(parts, m.Text)
+			if strings.TrimSpace(m.Text) != "" {
+				parts = append(parts, formatRoleBlock(toolMarker, m.Text, endToolResultsMarker))
 			}
 		case "system":
-			// Clear system boundary improves R1 and V3 context understanding significantly
-			if strings.TrimSpace(m.Text) != "" {
-				parts = append(parts, "<system_instructions>\n"+strings.TrimSpace(m.Text)+"\n</system_instructions>\n\n")
+			if text := strings.TrimSpace(m.Text); text != "" {
+				parts = append(parts, formatRoleBlock(systemMarker, text, endInstructionsMarker))
 			}
 		case "user":
-			// Always prepend <｜User｜> to user messages. DeepSeek R1 reasoning triggers best
-			// and aligns context perfectly when the user turn is explicitly marked.
-			parts = append(parts, "<｜User｜>"+m.Text)
+			parts = append(parts, formatRoleBlock(userMarker, m.Text, endSentenceMarker))
 		default:
-			parts = append(parts, m.Text)
+			if strings.TrimSpace(m.Text) != "" {
+				parts = append(parts, m.Text)
+			}
 		}
 	}
-	out := strings.Join(parts, "")
+	out := strings.Join(parts, "\n\n")
 	return markdownImagePattern.ReplaceAllString(out, `[${1}](${2})`)
+}
+
+// DeepSeek-style turn suffixes stay attached to the same block as the role content.
+func formatRoleBlock(marker, text, endMarker string) string {
+	out := marker + "\n" + text
+	if strings.TrimSpace(endMarker) != "" {
+		out += endMarker
+	}
+	return out
 }
 
 func NormalizeContent(v any) string {

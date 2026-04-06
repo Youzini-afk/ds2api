@@ -33,6 +33,8 @@ type ConfigStore interface {
 	RuntimeAccountMaxQueue(defaultSize int) int
 	RuntimeGlobalMaxInflight(defaultSize int) int
 	RuntimeTokenRefreshIntervalHours() int
+	AutoDeleteMode() string
+	CompatStripReferenceMarkers() bool
 	AutoDeleteSessions() bool
 }
 
@@ -40,6 +42,10 @@ type PoolController interface {
 	Reset()
 	Status() map[string]any
 	ApplyRuntimeLimits(maxInflightPerAccount, maxQueueSize, globalMaxInflight int)
+}
+
+type OpenAIChatCaller interface {
+	ChatCompletions(w http.ResponseWriter, r *http.Request)
 }
 
 type DeepSeekCaller interface {

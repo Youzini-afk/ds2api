@@ -8,6 +8,7 @@ import (
 	openaifmt "ds2api/internal/format/openai"
 	"ds2api/internal/sse"
 	streamengine "ds2api/internal/stream"
+	"ds2api/internal/toolcall"
 	"ds2api/internal/util"
 )
 
@@ -23,9 +24,10 @@ type responsesStreamRuntime struct {
 	traceID     string
 	toolChoice  util.ToolChoicePolicy
 
-	thinkingEnabled bool
-	exposeReasoning bool
-	searchEnabled   bool
+	thinkingEnabled       bool
+	exposeReasoning       bool
+	searchEnabled         bool
+	stripReferenceMarkers bool
 
 	bufferToolContent    bool
 	emitEarlyToolDeltas  bool
@@ -65,6 +67,7 @@ func newResponsesStreamRuntime(
 	thinkingEnabled bool,
 	exposeReasoning bool,
 	searchEnabled bool,
+	stripReferenceMarkers bool,
 	toolNames []string,
 	bufferToolContent bool,
 	emitEarlyToolDeltas bool,
@@ -73,41 +76,42 @@ func newResponsesStreamRuntime(
 	persistResponse func(obj map[string]any),
 ) *responsesStreamRuntime {
 	return &responsesStreamRuntime{
-		w:                   w,
-		rc:                  rc,
-		canFlush:            canFlush,
-		responseID:          responseID,
-		model:               model,
-		finalPrompt:         finalPrompt,
-		thinkingEnabled:     thinkingEnabled,
-		exposeReasoning:     exposeReasoning,
-		searchEnabled:       searchEnabled,
-		toolNames:           toolNames,
-		bufferToolContent:   bufferToolContent,
-		emitEarlyToolDeltas: emitEarlyToolDeltas,
-		streamToolCallIDs:   map[int]string{},
-		functionItemIDs:     map[int]string{},
-		functionOutputIDs:   map[int]int{},
-		functionArgs:        map[int]string{},
-		functionDone:        map[int]bool{},
-		functionAdded:       map[int]bool{},
-		functionNames:       map[int]string{},
-		messageOutputID:     -1,
-		toolChoice:          toolChoice,
-		traceID:             traceID,
-		persistResponse:     persistResponse,
+		w:                     w,
+		rc:                    rc,
+		canFlush:              canFlush,
+		responseID:            responseID,
+		model:                 model,
+		finalPrompt:           finalPrompt,
+		thinkingEnabled:       thinkingEnabled,
+		exposeReasoning:       exposeReasoning,
+		searchEnabled:         searchEnabled,
+		stripReferenceMarkers: stripReferenceMarkers,
+		toolNames:             toolNames,
+		bufferToolContent:     bufferToolContent,
+		emitEarlyToolDeltas:   emitEarlyToolDeltas,
+		streamToolCallIDs:     map[int]string{},
+		functionItemIDs:       map[int]string{},
+		functionOutputIDs:     map[int]int{},
+		functionArgs:          map[int]string{},
+		functionDone:          map[int]bool{},
+		functionAdded:         map[int]bool{},
+		functionNames:         map[int]string{},
+		messageOutputID:       -1,
+		toolChoice:            toolChoice,
+		traceID:               traceID,
+		persistResponse:       persistResponse,
 	}
 }
 
 func (s *responsesStreamRuntime) finalize() {
 	finalThinking := s.thinking.String()
-	finalText := sanitizeLeakedOutput(s.text.String())
+	finalText := cleanVisibleOutput(s.text.String(), s.stripReferenceMarkers)
 
 	if s.bufferToolContent {
 		s.processToolStreamEvents(flushToolSieve(&s.sieve, s.toolNames), true)
 	}
 
-	textParsed := util.ParseStandaloneToolCallsDetailed(finalText, s.toolNames)
+	textParsed := toolcall.ParseStandaloneToolCallsDetailed(finalText, s.toolNames)
 	detected := textParsed.Calls
 	s.logToolPolicyRejections(textParsed)
 
@@ -163,8 +167,8 @@ func (s *responsesStreamRuntime) finalize() {
 	s.sendDone()
 }
 
-func (s *responsesStreamRuntime) logToolPolicyRejections(textParsed util.ToolCallParseResult) {
-	logRejected := func(parsed util.ToolCallParseResult, channel string) {
+func (s *responsesStreamRuntime) logToolPolicyRejections(textParsed toolcall.ToolCallParseResult) {
+	logRejected := func(parsed toolcall.ToolCallParseResult, channel string) {
 		rejected := filteredRejectedToolNamesForLog(parsed.RejectedToolNames)
 		if !parsed.RejectedByPolicy || len(rejected) == 0 {
 			return
@@ -193,10 +197,11 @@ func (s *responsesStreamRuntime) onParsed(parsed sse.LineResult) streamengine.Pa
 
 	contentSeen := false
 	for _, p := range parsed.Parts {
-		if p.Text == "" {
+		cleanedText := cleanVisibleOutput(p.Text, s.stripReferenceMarkers)
+		if cleanedText == "" {
 			continue
 		}
-		if p.Type != "thinking" && s.searchEnabled && sse.IsCitation(p.Text) {
+		if p.Type != "thinking" && s.searchEnabled && sse.IsCitation(cleanedText) {
 			continue
 		}
 		contentSeen = true
@@ -204,24 +209,27 @@ func (s *responsesStreamRuntime) onParsed(parsed sse.LineResult) streamengine.Pa
 			if !s.thinkingEnabled {
 				continue
 			}
-			s.thinking.WriteString(p.Text)
+			trimmed := sse.TrimContinuationOverlap(s.thinking.String(), cleanedText)
+			if trimmed == "" {
+				continue
+			}
+			s.thinking.WriteString(trimmed)
 			if s.exposeReasoning {
-				s.ensureMessageOutputIndex()
-				s.sendEvent("response.reasoning.delta", openaifmt.BuildResponsesReasoningDeltaPayload(s.responseID, p.Text))
+				s.sendEvent("response.reasoning.delta", openaifmt.BuildResponsesReasoningDeltaPayload(s.responseID, trimmed))
 			}
 			continue
 		}
 
-		cleanedText := sanitizeLeakedOutput(p.Text)
-		if cleanedText == "" {
+		trimmed := sse.TrimContinuationOverlap(s.text.String(), cleanedText)
+		if trimmed == "" {
 			continue
 		}
-		s.text.WriteString(cleanedText)
+		s.text.WriteString(trimmed)
 		if !s.bufferToolContent {
-			s.emitTextDelta(cleanedText)
+			s.emitTextDelta(trimmed)
 			continue
 		}
-		s.processToolStreamEvents(processToolSieveChunk(&s.sieve, cleanedText, s.toolNames), true)
+		s.processToolStreamEvents(processToolSieveChunk(&s.sieve, trimmed, s.toolNames), true)
 	}
 
 	return streamengine.ParsedDecision{ContentSeen: contentSeen}

@@ -63,6 +63,26 @@ func TestParseDeepSeekContentLineContent(t *testing.T) {
 	}
 }
 
+func TestParseDeepSeekContentLineFiltersIncompleteStatusText(t *testing.T) {
+	res := ParseDeepSeekContentLine([]byte(`data: {"p":"response/status","v":"INCOMPLETE"}`), false, "text")
+	if !res.Parsed || res.Stop {
+		t.Fatalf("expected parsed non-stop result: %#v", res)
+	}
+	if len(res.Parts) != 0 {
+		t.Fatalf("expected INCOMPLETE status to be filtered, got %#v", res.Parts)
+	}
+}
+
+func TestParseDeepSeekContentLinePreservesSpaceOnlyChunk(t *testing.T) {
+	res := ParseDeepSeekContentLine([]byte(`data: {"v":" "}`), false, "text")
+	if !res.Parsed || res.Stop {
+		t.Fatalf("expected parsed non-stop result: %#v", res)
+	}
+	if len(res.Parts) != 1 || res.Parts[0].Text != " " || res.Parts[0].Type != "text" {
+		t.Fatalf("unexpected parts for space-only chunk: %#v", res.Parts)
+	}
+}
+
 func TestParseDeepSeekContentLineStripsLeakedContentFilterSuffix(t *testing.T) {
 	res := ParseDeepSeekContentLine([]byte(`data: {"p":"response/content","v":"正常输出CONTENT_FILTER你好，这个问题我暂时无法回答"}`), false, "text")
 	if !res.Parsed || res.Stop {

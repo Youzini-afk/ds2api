@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	openaifmt "ds2api/internal/format/openai"
-	"ds2api/internal/util"
+	"ds2api/internal/toolcall"
 )
 
 func (s *responsesStreamRuntime) closeIncompleteFunctionItems() {
@@ -57,7 +57,7 @@ func (s *responsesStreamRuntime) closeIncompleteFunctionItems() {
 	}
 }
 
-func (s *responsesStreamRuntime) buildCompletedResponseObject(finalThinking, finalText string, calls []util.ParsedToolCall) map[string]any {
+func (s *responsesStreamRuntime) buildCompletedResponseObject(finalThinking, finalText string, calls []toolcall.ParsedToolCall) map[string]any {
 	exposedThinking := ""
 	if s.exposeReasoning {
 		exposedThinking = finalThinking
@@ -70,23 +70,21 @@ func (s *responsesStreamRuntime) buildCompletedResponseObject(finalThinking, fin
 	indexed := make([]indexedItem, 0, len(calls)+1)
 
 	if s.messageAdded {
-		text := s.visibleText.String()
-		indexed = append(indexed, indexedItem{
-			index: s.ensureMessageOutputIndex(),
-			item: map[string]any{
-				"id":      s.ensureMessageItemID(),
-				"type":    "message",
-				"role":    "assistant",
-				"status":  "completed",
-				"content": openaifmt.BuildResponsesMessageContent(exposedThinking, text),
-			},
-		})
-	} else {
-		messageText := ""
-		if len(calls) == 0 {
-			messageText = finalText
+		content := openaifmt.BuildResponsesMessageContent(exposedThinking, s.visibleText.String())
+		if len(content) > 0 {
+			indexed = append(indexed, indexedItem{
+				index: s.ensureMessageOutputIndex(),
+				item: map[string]any{
+					"id":      s.ensureMessageItemID(),
+					"type":    "message",
+					"role":    "assistant",
+					"status":  "completed",
+					"content": content,
+				},
+			})
 		}
-		content := openaifmt.BuildResponsesMessageContent(exposedThinking, messageText)
+	} else if len(calls) == 0 {
+		content := openaifmt.BuildResponsesMessageContent(exposedThinking, finalText)
 		if len(content) > 0 {
 			indexed = append(indexed, indexedItem{
 				index: s.ensureMessageOutputIndex(),
@@ -128,8 +126,8 @@ func (s *responsesStreamRuntime) buildCompletedResponseObject(finalThinking, fin
 	}
 
 	outputText := s.visibleText.String()
-	if strings.TrimSpace(outputText) == "" && len(calls) == 0 {
-		if strings.TrimSpace(finalText) != "" {
+	if outputText == "" && len(calls) == 0 {
+		if finalText != "" {
 			outputText = finalText
 		} else if strings.TrimSpace(exposedThinking) != "" {
 			outputText = exposedThinking

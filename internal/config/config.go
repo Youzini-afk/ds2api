@@ -52,6 +52,7 @@ func (c *Config) DropInvalidAccounts() {
 
 type CompatConfig struct {
 	WideInputStrictOutput      *bool  `json:"wide_input_strict_output,omitempty"`
+	StripReferenceMarkers      *bool  `json:"strip_reference_markers,omitempty"`
 	Preset                     string `json:"preset,omitempty"`
 	ReasonerPromptModeOverride string `json:"reasoner_prompt_mode_override,omitempty"`
 	ReasoningExposureOverride  string `json:"reasoning_exposure_override,omitempty"`
@@ -80,5 +81,6 @@ type EmbeddingsConfig struct {
 }
 
 type AutoDeleteConfig struct {
-	Sessions bool `json:"sessions"`
+	Mode     string `json:"mode,omitempty"`
+	Sessions bool   `json:"sessions,omitempty"`
 }

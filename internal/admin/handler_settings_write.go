@@ -30,10 +30,8 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.Store.Update(func(c *config.Config) error {
-		if adminCfg != nil {
-			if adminCfg.JWTExpireHours > 0 {
-				c.Admin.JWTExpireHours = adminCfg.JWTExpireHours
-			}
+		if adminCfg != nil && adminCfg.JWTExpireHours > 0 {
+			c.Admin.JWTExpireHours = adminCfg.JWTExpireHours
 		}
 		if runtimeCfg != nil {
 			if runtimeCfg.AccountMaxInflight > 0 {
@@ -49,19 +47,14 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 				c.Runtime.TokenRefreshIntervalHours = runtimeCfg.TokenRefreshIntervalHours
 			}
 		}
-		if responsesCfg != nil && responsesCfg.StoreTTLSeconds > 0 {
-			c.Responses.StoreTTLSeconds = responsesCfg.StoreTTLSeconds
-		}
-		if embeddingsCfg != nil && strings.TrimSpace(embeddingsCfg.Provider) != "" {
-			c.Embeddings.Provider = strings.TrimSpace(embeddingsCfg.Provider)
-		}
-		if autoDeleteCfg != nil {
-			c.AutoDelete.Sessions = autoDeleteCfg.Sessions
-		}
 		if compatCfg != nil {
 			if compatCfg.HasWideInputStrictOutput {
 				v := compatCfg.WideInputStrictOutput
 				c.Compat.WideInputStrictOutput = &v
+			}
+			if compatCfg.HasStripReferenceMarkers {
+				v := compatCfg.StripReferenceMarkers
+				c.Compat.StripReferenceMarkers = &v
 			}
 			if compatCfg.HasPreset {
 				c.Compat.Preset = compatCfg.Preset
@@ -75,6 +68,18 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 			if compatCfg.HasUpstreamProfileOverride {
 				c.Compat.UpstreamProfileOverride = compatCfg.UpstreamProfileOverride
 			}
+		}
+		if responsesCfg != nil && responsesCfg.StoreTTLSeconds > 0 {
+			c.Responses.StoreTTLSeconds = responsesCfg.StoreTTLSeconds
+		}
+		if embeddingsCfg != nil {
+			c.Embeddings.Provider = strings.TrimSpace(embeddingsCfg.Provider)
+		}
+		if autoDeleteCfg != nil {
+			if strings.TrimSpace(autoDeleteCfg.Mode) != "" {
+				c.AutoDelete.Mode = autoDeleteCfg.Mode
+			}
+			c.AutoDelete.Sessions = autoDeleteCfg.Sessions
 		}
 		if claudeMap != nil {
 			c.ClaudeMapping = claudeMap

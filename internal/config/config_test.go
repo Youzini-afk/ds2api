@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -347,6 +348,44 @@ func TestLoadConfigOnVercelWithoutConfigFileFallsBackToMemory(t *testing.T) {
 	}
 	if len(cfg.Keys) != 0 || len(cfg.Accounts) != 0 {
 		t.Fatalf("expected empty bootstrap config, got keys=%d accounts=%d", len(cfg.Keys), len(cfg.Accounts))
+	}
+}
+
+func TestLoadConfigOnZeaburWithoutConfigFileFallsBackToWritableBootstrap(t *testing.T) {
+	t.Setenv("VERCEL", "")
+	t.Setenv("NOW_REGION", "")
+	t.Setenv("ZEABUR", "1")
+	t.Setenv("DS2API_CONFIG_JSON", "")
+	path := filepath.Join(t.TempDir(), "data", "config.json")
+	t.Setenv("DS2API_CONFIG_PATH", path)
+
+	cfg, fromEnv, err := loadConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fromEnv {
+		t.Fatalf("expected fromEnv=false for zeabur bootstrap")
+	}
+	if len(cfg.Keys) != 0 || len(cfg.Accounts) != 0 {
+		t.Fatalf("expected empty bootstrap config, got keys=%d accounts=%d", len(cfg.Keys), len(cfg.Accounts))
+	}
+
+	store := LoadStore()
+	if store.IsEnvBacked() {
+		t.Fatalf("expected zeabur bootstrap store to remain file-backed")
+	}
+	if err := store.Update(func(c *Config) error {
+		c.Keys = append(c.Keys, "zeabur-bootstrap-key")
+		return nil
+	}); err != nil {
+		t.Fatalf("persist bootstrap config: %v", err)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read persisted config: %v", err)
+	}
+	if !strings.Contains(string(content), "zeabur-bootstrap-key") {
+		t.Fatalf("expected persisted config to contain bootstrap key, got: %s", content)
 	}
 }
 

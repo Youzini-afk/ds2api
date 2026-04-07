@@ -188,6 +188,7 @@ Notes:
 - **Fork auto-deploy recommendation**: if you are deploying your own fork, prefer importing the GitHub repo directly in Zeabur. In that flow, Zeabur primarily uses the repo-root `Dockerfile`, while `zeabur.yaml` mainly provides template metadata, default envs, volume, and health-check guidance.
 - **Port**: DS2API listens on `5001` by default; the template sets `PORT=5001`.
 - **Persistent config**: the template mounts `/data` and sets `DS2API_CONFIG_PATH=/data/config.json`. After importing config in Admin UI, it will be written and persisted to this path.
+- **First-time bootstrap**: if `/data/config.json` does not exist on first boot, DS2API now starts with an empty bootstrap config so you can finish setup in `/admin`; the first save creates the file automatically.
 - **Build version**: Zeabur / regular `docker build` does not require `BUILD_VERSION` by default. The image prefers that build arg when provided, and automatically falls back to the repo-root `VERSION` file when it is absent.
 - **First login**: after deployment, open `/admin` and login with `DS2API_ADMIN_KEY` shown in Zeabur env/template instructions (recommended: rotate to a strong secret after first login).
 

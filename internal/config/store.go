@@ -89,10 +89,16 @@ func loadConfig() (Config, bool, error) {
 
 	cfg, err := loadConfigFromFile(ConfigPath())
 	if err != nil {
-		if IsVercel() {
+		if errors.Is(err, os.ErrNotExist) && IsVercel() {
 			// Vercel one-click deploy may start without a writable/present config file.
 			// Keep an in-memory config so users can bootstrap via WebUI then sync env.
 			return Config{}, true, nil
+		}
+		if errors.Is(err, os.ErrNotExist) && IsZeabur() {
+			// Zeabur one-click deploy mounts /data for persistence, but the config file
+			// may not exist on first boot. Start with an empty file-backed config so
+			// Admin UI initialization can create /data/config.json on first save.
+			return Config{}, false, nil
 		}
 		return Config{}, false, err
 	}

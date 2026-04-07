@@ -19,6 +19,7 @@ spec:
     - Admin panel: `/admin`
     - Health check: `/healthz`
     - Config is persisted at `/data/config.json` (mounted volume)
+    - If `/data/config.json` does not exist on first boot, DS2API starts in bootstrap mode so you can initialize it from `/admin`
     - `BUILD_VERSION` is optional; when omitted, Docker build falls back to the repo `VERSION` file automatically
     - Direct GitHub auto-deploy on Zeabur primarily uses the repo-root `Dockerfile`; `zeabur.yaml` provides template metadata/defaults
 

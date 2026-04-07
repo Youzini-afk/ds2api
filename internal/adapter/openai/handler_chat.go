@@ -116,7 +116,7 @@ func (h *Handler) autoDeleteRemoteSession(ctx context.Context, a *auth.RequestAu
 
 func (h *Handler) handleNonStream(w http.ResponseWriter, ctx context.Context, resp *http.Response, completionID, model, finalPrompt string, thinkingEnabled, exposeReasoning bool, toolNames []string) {
 	if resp.StatusCode != http.StatusOK {
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		body, _ := io.ReadAll(resp.Body)
 		writeOpenAIError(w, resp.StatusCode, string(body))
 		return
@@ -131,19 +131,24 @@ func (h *Handler) handleNonStream(w http.ResponseWriter, ctx context.Context, re
 		return
 	}
 	respBody := openaifmt.BuildChatCompletion(completionID, model, finalPrompt, finalThinking, finalText, toolNames, exposeReasoning)
-	if result.OutputTokens > 0 {
+	if result.PromptTokens > 0 || result.OutputTokens > 0 {
 		if usage, ok := respBody["usage"].(map[string]any); ok {
-			usage["completion_tokens"] = result.OutputTokens
-			if prompt, ok := usage["prompt_tokens"].(int); ok {
-				usage["total_tokens"] = prompt + result.OutputTokens
+			if result.PromptTokens > 0 {
+				usage["prompt_tokens"] = result.PromptTokens
 			}
+			if result.OutputTokens > 0 {
+				usage["completion_tokens"] = result.OutputTokens
+			}
+			p, _ := usage["prompt_tokens"].(int)
+			c, _ := usage["completion_tokens"].(int)
+			usage["total_tokens"] = p + c
 		}
 	}
 	writeJSON(w, http.StatusOK, respBody)
 }
 
 func (h *Handler) handleStream(w http.ResponseWriter, r *http.Request, resp *http.Response, completionID, model, finalPrompt string, thinkingEnabled, exposeReasoning, searchEnabled bool, toolNames []string) {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		writeOpenAIError(w, resp.StatusCode, string(body))

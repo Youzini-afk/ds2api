@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 )
 
 func BuildResponsesMessageContent(reasoningText, outputText string) []any {

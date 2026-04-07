@@ -107,7 +107,7 @@ func (h *Handler) Responses(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleResponsesNonStream(w http.ResponseWriter, resp *http.Response, owner, responseID, model, finalPrompt string, thinkingEnabled, exposeReasoning bool, toolNames []string, toolChoice util.ToolChoicePolicy, traceID string) {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		writeOpenAIError(w, resp.StatusCode, strings.TrimSpace(string(body)))
@@ -130,12 +130,17 @@ func (h *Handler) handleResponsesNonStream(w http.ResponseWriter, resp *http.Res
 	}
 
 	responseObj := openaifmt.BuildResponseObject(responseID, model, finalPrompt, sanitizedThinking, sanitizedText, toolNames, exposeReasoning)
-	if result.OutputTokens > 0 {
+	if result.PromptTokens > 0 || result.OutputTokens > 0 {
 		if usage, ok := responseObj["usage"].(map[string]any); ok {
-			usage["output_tokens"] = result.OutputTokens
-			if input, ok := usage["input_tokens"].(int); ok {
-				usage["total_tokens"] = input + result.OutputTokens
+			if result.PromptTokens > 0 {
+				usage["input_tokens"] = result.PromptTokens
 			}
+			if result.OutputTokens > 0 {
+				usage["output_tokens"] = result.OutputTokens
+			}
+			input, _ := usage["input_tokens"].(int)
+			output, _ := usage["output_tokens"].(int)
+			usage["total_tokens"] = input + output
 		}
 	}
 	h.getResponseStore().put(owner, responseID, responseObj)
@@ -143,7 +148,7 @@ func (h *Handler) handleResponsesNonStream(w http.ResponseWriter, resp *http.Res
 }
 
 func (h *Handler) handleResponsesStream(w http.ResponseWriter, r *http.Request, resp *http.Response, owner, responseID, model, finalPrompt string, thinkingEnabled, exposeReasoning, searchEnabled bool, toolNames []string, toolChoice util.ToolChoicePolicy, traceID string) {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		writeOpenAIError(w, resp.StatusCode, strings.TrimSpace(string(body)))

@@ -59,7 +59,7 @@ docker-compose -f docker-compose.dev.yml up
 
 | Language | Standards |
 | --- | --- |
-| **Go** | Run `gofmt` and ensure `go test ./...` passes before committing |
+| **Go** | Run `./scripts/lint.sh` (gofmt + golangci-lint) and ensure `go test ./...` passes before committing |
 | **JavaScript/React** | Follow existing project style (functional components) |
 | **Commit messages** | Use semantic prefixes: `feat:`, `fix:`, `docs:`, `refactor:`, `style:`, `perf:`, `chore:` |
 
@@ -115,7 +115,7 @@ ds2api/
 │   ├── claudeconv/          # Claude message conversion
 │   ├── compat/              # Go-version compatibility and regression helpers
 │   ├── config/              # Config loading, validation, and hot-reload
-│   ├── deepseek/            # DeepSeek client, PoW WASM
+│   ├── deepseek/            # DeepSeek client, PoW logic
 │   ├── js/                  # Node runtime stream/compat logic
 │   ├── devcapture/          # Dev packet capture
 │   ├── format/              # Output formatting

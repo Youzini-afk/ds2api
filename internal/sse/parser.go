@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"math"
+	"strconv"
 	"strings"
 
 	"ds2api/internal/deepseek"
@@ -56,9 +57,7 @@ func isFragmentStatusPath(path string) bool {
 	if mid == "" {
 		return false
 	}
-	if strings.HasPrefix(mid, "-") {
-		mid = mid[1:]
-	}
+	mid = strings.TrimPrefix(mid, "-")
 	if mid == "" {
 		return false
 	}
@@ -309,11 +308,12 @@ func extractContentRecursive(items []any, defaultType string) ([]ContentPart, bo
 					}
 					typeName, _ := x["type"].(string)
 					typeName = strings.ToUpper(typeName)
-					if typeName == "THINK" || typeName == "THINKING" {
+					switch typeName {
+					case "THINK", "THINKING":
 						parts = append(parts, ContentPart{Text: ct, Type: "thinking"})
-					} else if typeName == "RESPONSE" {
+					case "RESPONSE":
 						parts = append(parts, ContentPart{Text: ct, Type: "text"})
-					} else {
+					default:
 						parts = append(parts, ContentPart{Text: ct, Type: partType})
 					}
 				case string:
@@ -364,34 +364,50 @@ func hasContentFilterStatusValue(v any) bool {
 	return false
 }
 
-func extractAccumulatedTokenUsage(chunk map[string]any) int {
+func extractAccumulatedTokenUsage(chunk map[string]any) (int, int) {
 	return findAccumulatedTokenUsage(chunk)
 }
 
-func findAccumulatedTokenUsage(v any) int {
+func findAccumulatedTokenUsage(v any) (int, int) {
 	switch x := v.(type) {
 	case map[string]any:
 		if p, _ := x["p"].(string); strings.Contains(strings.ToLower(p), "accumulated_token_usage") {
 			if n, ok := toInt(x["v"]); ok && n > 0 {
-				return n
+				return 0, n
+			}
+		}
+		if p, _ := x["p"].(string); strings.Contains(strings.ToLower(p), "token_usage") {
+			if m, ok := x["v"].(map[string]any); ok {
+				p, _ := toInt(m["prompt_tokens"])
+				c, _ := toInt(m["completion_tokens"])
+				if p > 0 || c > 0 {
+					return p, c
+				}
 			}
 		}
 		if n, ok := toInt(x["accumulated_token_usage"]); ok && n > 0 {
-			return n
+			return 0, n
+		}
+		if usage, ok := x["token_usage"].(map[string]any); ok {
+			p, _ := toInt(usage["prompt_tokens"])
+			c, _ := toInt(usage["completion_tokens"])
+			if p > 0 || c > 0 {
+				return p, c
+			}
 		}
 		for _, vv := range x {
-			if n := findAccumulatedTokenUsage(vv); n > 0 {
-				return n
+			if p, c := findAccumulatedTokenUsage(vv); p > 0 || c > 0 {
+				return p, c
 			}
 		}
 	case []any:
 		for _, item := range x {
-			if n := findAccumulatedTokenUsage(item); n > 0 {
-				return n
+			if p, c := findAccumulatedTokenUsage(item); p > 0 || c > 0 {
+				return p, c
 			}
 		}
 	}
-	return 0
+	return 0, 0
 }
 
 func toInt(v any) (int, bool) {
@@ -413,6 +429,19 @@ func toInt(v any) (int, bool) {
 			return 0, false
 		}
 		return int(i), true
+	case string:
+		s := strings.TrimSpace(x)
+		if s == "" {
+			return 0, false
+		}
+		if i, err := strconv.Atoi(s); err == nil {
+			return i, true
+		}
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil || math.IsNaN(f) || math.IsInf(f, 0) {
+			return 0, false
+		}
+		return int(f), true
 	default:
 		return 0, false
 	}

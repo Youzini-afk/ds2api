@@ -1,10 +1,9 @@
 package openai
 
 import (
+	"ds2api/internal/toolcall"
 	"strings"
 	"time"
-
-	"ds2api/internal/toolcall"
 )
 
 func BuildChatCompletion(completionID, model, finalPrompt, finalThinking, finalText string, toolNames []string, exposeReasoning bool) map[string]any {

@@ -19,3 +19,7 @@ func MessagesPrepareWithCompat(messages []map[string]any, resolvedModel, reasone
 		ReasonerAssistantBoundary: useReasonerBoundary,
 	})
 }
+
+func MessagesPrepareWithThinking(messages []map[string]any, thinkingEnabled bool) string {
+	return prompt.MessagesPrepareWithThinking(messages, thinkingEnabled)
+}

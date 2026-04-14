@@ -25,25 +25,27 @@ func normalizeOpenAIChatRequest(store ConfigReader, req map[string]any, traceID 
 	}
 	toolPolicy := util.DefaultToolChoicePolicy()
 	reasonerPromptMode := compatReasonerPromptMode(store)
-	finalPrompt, toolNames := buildOpenAIFinalPromptWithPolicy(messagesRaw, req["tools"], traceID, toolPolicy, resolvedModel, reasonerPromptMode)
+	finalPrompt, toolNames := buildOpenAIFinalPromptWithPolicy(messagesRaw, req["tools"], traceID, toolPolicy, thinkingEnabled, resolvedModel, reasonerPromptMode)
 	toolNames = ensureToolDetectionEnabled(toolNames, req["tools"])
 	passThrough := collectOpenAIChatPassThrough(req)
 	exposeReasoning := shouldExposeReasoning(store, req)
+	refFileIDs := collectOpenAIRefFileIDs(req)
 
 	return util.StandardRequest{
-		Surface:        "openai_chat",
-		RequestedModel: strings.TrimSpace(model),
-		ResolvedModel:  resolvedModel,
-		ResponseModel:  responseModel,
-		Messages:       messagesRaw,
-		FinalPrompt:    finalPrompt,
-		ToolNames:      toolNames,
-		ToolChoice:     toolPolicy,
-		Stream:         util.ToBool(req["stream"]),
-		Thinking:       thinkingEnabled,
+		Surface:         "openai_chat",
+		RequestedModel:  strings.TrimSpace(model),
+		ResolvedModel:   resolvedModel,
+		ResponseModel:   responseModel,
+		Messages:        messagesRaw,
+		FinalPrompt:     finalPrompt,
+		ToolNames:       toolNames,
+		ToolChoice:      toolPolicy,
+		Stream:          util.ToBool(req["stream"]),
+		Thinking:        thinkingEnabled,
 		ExposeReasoning: exposeReasoning,
-		Search:         searchEnabled,
-		PassThrough:    passThrough,
+		Search:          searchEnabled,
+		RefFileIDs:      refFileIDs,
+		PassThrough:     passThrough,
 	}, nil
 }
 
@@ -78,28 +80,30 @@ func normalizeOpenAIResponsesRequest(store ConfigReader, req map[string]any, tra
 		return util.StandardRequest{}, err
 	}
 	reasonerPromptMode := compatReasonerPromptMode(store)
-	finalPrompt, toolNames := buildOpenAIFinalPromptWithPolicy(messagesRaw, req["tools"], traceID, toolPolicy, resolvedModel, reasonerPromptMode)
+	finalPrompt, toolNames := buildOpenAIFinalPromptWithPolicy(messagesRaw, req["tools"], traceID, toolPolicy, thinkingEnabled, resolvedModel, reasonerPromptMode)
 	toolNames = ensureToolDetectionEnabled(toolNames, req["tools"])
 	if !toolPolicy.IsNone() {
 		toolPolicy.Allowed = namesToSet(toolNames)
 	}
 	passThrough := collectOpenAIChatPassThrough(req)
 	exposeReasoning := shouldExposeReasoning(store, req)
+	refFileIDs := collectOpenAIRefFileIDs(req)
 
 	return util.StandardRequest{
-		Surface:        "openai_responses",
-		RequestedModel: model,
-		ResolvedModel:  resolvedModel,
-		ResponseModel:  model,
-		Messages:       messagesRaw,
-		FinalPrompt:    finalPrompt,
-		ToolNames:      toolNames,
-		ToolChoice:     toolPolicy,
-		Stream:         util.ToBool(req["stream"]),
-		Thinking:       thinkingEnabled,
+		Surface:         "openai_responses",
+		RequestedModel:  model,
+		ResolvedModel:   resolvedModel,
+		ResponseModel:   model,
+		Messages:        messagesRaw,
+		FinalPrompt:     finalPrompt,
+		ToolNames:       toolNames,
+		ToolChoice:      toolPolicy,
+		Stream:          util.ToBool(req["stream"]),
+		Thinking:        thinkingEnabled,
 		ExposeReasoning: exposeReasoning,
-		Search:         searchEnabled,
-		PassThrough:    passThrough,
+		Search:          searchEnabled,
+		RefFileIDs:      refFileIDs,
+		PassThrough:     passThrough,
 	}, nil
 }
 

@@ -14,6 +14,7 @@ type PrepareOptions struct {
 }
 
 const (
+	beginSentenceMarker   = "<｜begin▁of▁sentence｜>"
 	systemMarker          = "<｜System｜>"
 	userMarker            = "<｜User｜>"
 	assistantMarker       = "<｜Assistant｜>"
@@ -21,12 +22,17 @@ const (
 	endSentenceMarker     = "<｜end▁of▁sentence｜>"
 	endToolResultsMarker  = "<｜end▁of▁toolresults｜>"
 	endInstructionsMarker = "<｜end▁of▁instructions｜>"
+	openThinkMarker       = "<think>"
+	closeThinkMarker      = "</think>"
 )
 
 func MessagesPrepare(messages []map[string]any) string {
-	return MessagesPrepareWithOptions(messages, PrepareOptions{})
+	return MessagesPrepareWithThinking(messages, false)
 }
 
+// MessagesPrepareWithOptions preserves the legacy multi-role prompt shape used by
+// ds2api's compatibility layer, while allowing the reasoner assistant boundary
+// to switch to the end_of_thinking marker when requested.
 func MessagesPrepareWithOptions(messages []map[string]any, opts PrepareOptions) string {
 	type block struct {
 		Role string
@@ -49,15 +55,97 @@ func MessagesPrepareWithOptions(messages []map[string]any, opts PrepareOptions) 
 		}
 		merged = append(merged, msg)
 	}
-	parts := make([]string, 0, len(merged))
+
+	var b strings.Builder
+	wroteLegacySystem := false
 	for _, m := range merged {
 		switch m.Role {
-		case "assistant":
-			if opts.ReasonerAssistantBoundary {
-				parts = append(parts, formatRoleBlock(assistantMarker, "<｜end▁of▁thinking｜>\n"+m.Text, endSentenceMarker))
+		case "system":
+			text := strings.TrimSpace(m.Text)
+			if text == "" {
 				continue
 			}
-			parts = append(parts, formatRoleBlock(assistantMarker, m.Text, endSentenceMarker))
+			if b.Len() > 0 {
+				b.WriteString("\n\n")
+			}
+			b.WriteString("<system_instructions>\n")
+			b.WriteString(text)
+			b.WriteString("\n</system_instructions>")
+			wroteLegacySystem = true
+		case "user":
+			if wroteLegacySystem && b.Len() > 0 {
+				b.WriteString("\n\n")
+				wroteLegacySystem = false
+			}
+			b.WriteString(userMarker)
+			b.WriteString(m.Text)
+			b.WriteString(endSentenceMarker)
+		case "assistant":
+			if wroteLegacySystem && b.Len() > 0 {
+				b.WriteString("\n\n")
+				wroteLegacySystem = false
+			}
+			b.WriteString(assistantMarker)
+			if opts.ReasonerAssistantBoundary {
+				b.WriteString("<｜end▁of▁thinking｜>")
+			}
+			b.WriteString(m.Text)
+			b.WriteString(endSentenceMarker)
+		case "tool":
+			if strings.TrimSpace(m.Text) == "" {
+				continue
+			}
+			if wroteLegacySystem && b.Len() > 0 {
+				b.WriteString("\n\n")
+				wroteLegacySystem = false
+			}
+			b.WriteString(toolMarker)
+			b.WriteString(m.Text)
+			b.WriteString(endToolResultsMarker)
+		default:
+			if strings.TrimSpace(m.Text) == "" {
+				continue
+			}
+			if wroteLegacySystem && b.Len() > 0 {
+				b.WriteString("\n\n")
+				wroteLegacySystem = false
+			}
+			b.WriteString(m.Text)
+		}
+	}
+	return markdownImagePattern.ReplaceAllString(b.String(), `[${1}](${2})`)
+}
+
+func MessagesPrepareWithThinking(messages []map[string]any, thinkingEnabled bool) string {
+	type block struct {
+		Role string
+		Text string
+	}
+	processed := make([]block, 0, len(messages))
+	for _, m := range messages {
+		role, _ := m["role"].(string)
+		text := NormalizeContent(m["content"])
+		processed = append(processed, block{Role: role, Text: text})
+	}
+	if len(processed) == 0 {
+		return ""
+	}
+	merged := make([]block, 0, len(processed))
+	for _, msg := range processed {
+		if len(merged) > 0 && merged[len(merged)-1].Role == msg.Role {
+			merged[len(merged)-1].Text += "\n\n" + msg.Text
+			continue
+		}
+		merged = append(merged, msg)
+	}
+	parts := make([]string, 0, len(merged)+2)
+	parts = append(parts, beginSentenceMarker)
+	lastRole := ""
+	for _, m := range merged {
+		lastRole = m.Role
+		switch m.Role {
+		case "assistant":
+			parts = append(parts, formatRoleBlock(assistantMarker, closeThinkMarker+m.Text, endSentenceMarker))
 		case "tool":
 			if strings.TrimSpace(m.Text) != "" {
 				parts = append(parts, formatRoleBlock(toolMarker, m.Text, endToolResultsMarker))
@@ -73,6 +161,13 @@ func MessagesPrepareWithOptions(messages []map[string]any, opts PrepareOptions) 
 				parts = append(parts, m.Text)
 			}
 		}
+	}
+	if lastRole != "assistant" {
+		thinkPrefix := closeThinkMarker
+		if thinkingEnabled {
+			thinkPrefix = openThinkMarker
+		}
+		parts = append(parts, assistantMarker+thinkPrefix)
 	}
 	out := strings.Join(parts, "\n\n")
 	return markdownImagePattern.ReplaceAllString(out, `[${1}](${2})`)

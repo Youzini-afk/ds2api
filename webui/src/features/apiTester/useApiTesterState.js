@@ -12,6 +12,7 @@ export function useApiTesterState({ t, config }) {
     const [streamingThinking, setStreamingThinking] = useState('')
     const [isStreaming, setIsStreaming] = useState(false)
     const [streamingMode, setStreamingMode] = useState(true)
+    const [attachedFiles, setAttachedFiles] = useState([])
     const [includeReasoning, setIncludeReasoning] = useState(true)
     const [configExpanded, setConfigExpanded] = useState(false)
 
@@ -33,6 +34,8 @@ export function useApiTesterState({ t, config }) {
         setModel,
         message,
         setMessage,
+        attachedFiles,
+        setAttachedFiles,
         apiKey,
         setApiKey,
         selectedAccount,
